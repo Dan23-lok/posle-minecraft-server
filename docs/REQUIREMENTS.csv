@@ -62,22 +62,22 @@ R060,"Small player profiles, optional flags, public data only",23,social,NOT STA
 R061,"Friends, consent-based team invitations, plus/minus or rebound UI",23,social,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R062,"Leaving teams, persistent clans, building and taking towns",23,social,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R063,"Forty curated team flags, chosen once until group deletion",23,social,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
-R064,Minimalist attractive published site with a real GitHub link,24,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R064,Minimalist attractive published site with a real GitHub link,24,distribution,IN PROGRESS,Public Sites deploy v5 verified HTTP 200 with two v5 installer links and visible GitHub project link; full player usability untested,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R065,"Accurate world image, no nonsensical roads/dams/water",24,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R066,"Interactive actual world map, no player positions or telemetry",24,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R067,No owner address/private origin details in the public site,"24, 28",distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R068,Short installation instructions and real support communication,"24, 26",distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
-R069,Download/Play installs the right files in the right managed instance,25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
-R070,Working actual TLauncher profile and automated supported launch,25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
-R071,"Updates, repair, rollback, and clean installation validation",25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R069,Download/Play installs the right files in the right managed instance,25,distribution,IN PROGRESS,Verified v5 ZIP from public site and GitHub; 26/26 assets installed and receipt in existing managed client; Play-to-launch not tested,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R070,Working actual TLauncher profile and automated supported launch,25,distribution,IN PROGRESS,Forge profile visible in TLauncher and client files installed; current launcher authentication token expired and post-v5 launch not verified,Owner must reauthorize account in TLauncher UI,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R071,"Updates, repair, rollback, and clean installation validation",25,distribution,IN PROGRESS,Installer v5 graphics presets and reversible NoShader tested; full clean install/update/uninstall and game launch remain unverified,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R072,Website/local uninstall removes only this project's owned files,25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R073,"Genuine reviews as low priority, no fabricated testimonials",26,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
-R074,"Optimize clients across PCs, automatic appropriate settings",27,performance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R074,"Optimize clients across PCs, automatic appropriate settings",27,performance,IN PROGRESS,Hardware-aware Low/Balanced/High options applied in v5 and tests passed; FPS across PCs and shader scene comparisons unmeasured,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R075,"Stable best-practical FPS with measured results, not universal promises",27,performance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
-R076,Server tick/memory/load optimization and bounded generation,"17, 27-28",performance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R076,Server tick/memory/load optimization and bounded generation,"17, 27-28",performance,IN PROGRESS,Three isolated Tellus new-area tests measured 13-15 s tick lag even with warm OSM tiles; optimization not achieved,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R077,Install necessary official tools without unrelated/security changes,05,lead,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R078,"Whole-world/sector inspection, visual fly-through, defect repair",30,quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R079,Keep correcting and regression-testing instead of moving past defects,"01, 30",quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
-R080,"Backups, safe world switching, source privacy, tested restoration",28,operations,RESEARCHING,Backup exists; independent restore test pending,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R080,"Backups, safe world switching, source privacy, tested restoration",28,operations,IN PROGRESS,Baseline ZIP verified and isolated Forge restore booted/saved/stopped on loopback 25571; live switch and player login not tested,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R081,Evidence-backed acceptance before a finished-release claim,31-32,quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
 R082,Record unresolved scope honestly; do not hide missing work,"01, 30-32",quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
