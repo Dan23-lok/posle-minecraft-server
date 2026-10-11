@@ -17,6 +17,7 @@ public final class AuthConfig {
     private static final ForgeConfigSpec.IntValue MAX_LOGIN_ATTEMPTS;
     private static final ForgeConfigSpec.IntValue LOGIN_TIMEOUT_SECONDS;
     private static final ForgeConfigSpec.IntValue LOCKOUT_SECONDS;
+    private static final ForgeConfigSpec.IntValue MAX_REGISTERED_ACCOUNTS;
     private static final ForgeConfigSpec.ConfigValue<String> LANGUAGE;
     private static final ForgeConfigSpec.ConfigValue<String> OWNER_USERNAME;
 
@@ -24,6 +25,7 @@ public final class AuthConfig {
     private static int maxLoginAttempts = 5;
     private static int loginTimeoutSeconds = 300;
     private static int lockoutSeconds = 60;
+    private static int maxRegisteredAccounts = 256;
     private static String language = "auto";
     private static String ownerUsername = "";
 
@@ -38,6 +40,8 @@ public final class AuthConfig {
                 .defineInRange("loginTimeoutSeconds", 300, 30, 3600);
         LOCKOUT_SECONDS = builder.comment("Per-connection fifth-failure cooldown and maximum retry delay in seconds (legacy key name)")
                 .defineInRange("lockoutSeconds", 60, 1, 3600);
+        MAX_REGISTERED_ACCOUNTS = builder.comment("Maximum number of registered names; existing accounts continue to work if already above this limit")
+                .defineInRange("maxRegisteredAccounts", 256, 10, 100000);
         LANGUAGE = builder.comment("Message language: auto (client language), ru or en")
                 .define("language", "auto");
         OWNER_USERNAME = builder.comment("Exact-case owner Minecraft nickname for /owner. Empty disables temporary owner commands. Keep this server-only.")
@@ -64,6 +68,7 @@ public final class AuthConfig {
         maxLoginAttempts = MAX_LOGIN_ATTEMPTS.get();
         loginTimeoutSeconds = LOGIN_TIMEOUT_SECONDS.get();
         lockoutSeconds = LOCKOUT_SECONDS.get();
+        maxRegisteredAccounts = MAX_REGISTERED_ACCOUNTS.get();
         language = LANGUAGE.get();
         ownerUsername = OWNER_USERNAME.get();
     }
@@ -82,6 +87,10 @@ public final class AuthConfig {
 
     public static int lockoutSeconds() {
         return lockoutSeconds;
+    }
+
+    public static int maxRegisteredAccounts() {
+        return maxRegisteredAccounts;
     }
 
     public static String language() {

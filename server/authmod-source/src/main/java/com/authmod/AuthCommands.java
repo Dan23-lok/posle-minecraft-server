@@ -71,13 +71,19 @@ public class AuthCommands {
                                 return 0;
                             }
 
-                            if (!AuthEventHandler.registerPlayer(player, password)) {
-                                player.sendSystemMessage(Lang.msg(player, "authmod.register.already"));
-                                return 0;
+                            AuthEventHandler.RegistrationSubmission submission = AuthEventHandler.registerPlayer(
+                                    player, password, inviteCode, result -> finishRegistration(player, result));
+                            switch (submission) {
+                                case ACCEPTED -> player.sendSystemMessage(Lang.msg(player, "authmod.register.checking"));
+                                case ALREADY_PENDING -> player.sendSystemMessage(Lang.msg(player, "authmod.register.pending"));
+                                case BUSY -> player.sendSystemMessage(Lang.msg(player, "authmod.register.busy"));
+                                case RATE_LIMITED -> player.sendSystemMessage(Lang.msg(player, "authmod.register.rate_limited"));
+                                case FULL -> player.sendSystemMessage(Lang.msg(player, "authmod.register.full"));
+                                case ALREADY_REGISTERED -> player.sendSystemMessage(Lang.msg(player, "authmod.register.already"));
+                                case INVALID_INVITE -> player.sendSystemMessage(Lang.msg(player, "authmod.register.wrong_invite"));
+                                case TIMED_OUT -> player.sendSystemMessage(Lang.msg(player, "authmod.register.timed_out"));
                             }
-                            player.sendSystemMessage(Lang.msg(player, "authmod.register.success"));
-                            player.sendSystemMessage(Lang.msg(player, "authmod.register.play"));
-                            return 1;
+                            return submission == AuthEventHandler.RegistrationSubmission.ACCEPTED ? 1 : 0;
                         })
                         )
                 )
@@ -194,21 +200,19 @@ public class AuthCommands {
             return 0;
         }
 
-        if (!AuthData.verifyPassword(username, oldPassword)) {
-            player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.wrong_old"));
-            return 0;
-        }
         if (newPassword.length() < AuthConfig.minPasswordLength()) {
             player.sendSystemMessage(Lang.msg(player, "authmod.password.too_short", AuthConfig.minPasswordLength()));
             return 0;
         }
-        AuthData.setPlayerPassword(username, newPassword);
-        AuthData.save();
-        forEachOnlineMatch(username, other -> {
-            if (other != player) AuthEventHandler.forceRelock(other);
-        });
-        player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.success"));
-        return 1;
+        AuthEventHandler.ChangeSubmission submission = AuthEventHandler.changeOwnPassword(
+                player, oldPassword, newPassword, outcome -> finishPasswordChange(player, username, outcome));
+        switch (submission) {
+            case ACCEPTED -> player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.checking"));
+            case ALREADY_PENDING -> player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.pending"));
+            case BUSY -> player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.busy"));
+            case RATE_LIMITED -> player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.rate_limited"));
+        }
+        return submission == AuthEventHandler.ChangeSubmission.ACCEPTED ? 1 : 0;
     }
 
     private static void finishLogin(ServerPlayer player, AuthEventHandler.LoginOutcome result) {
@@ -226,6 +230,35 @@ public class AuthCommands {
                 player.sendSystemMessage(Lang.msg(player, "authmod.login.wrong_password"));
                 player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", LoginLimiter.remainingSeconds(player.connection)));
             }
+        }
+    }
+
+    private static void finishRegistration(ServerPlayer player, AuthEventHandler.RegistrationOutcome result) {
+        switch (result) {
+            case SUCCESS -> {
+                player.sendSystemMessage(Lang.msg(player, "authmod.register.success"));
+                player.sendSystemMessage(Lang.msg(player, "authmod.register.play"));
+            }
+            case ALREADY_REGISTERED -> player.sendSystemMessage(Lang.msg(player, "authmod.register.already"));
+            case INVALID_INVITE -> player.sendSystemMessage(Lang.msg(player, "authmod.register.wrong_invite"));
+            case TIMED_OUT -> player.sendSystemMessage(Lang.msg(player, "authmod.register.timed_out"));
+            case FULL -> player.sendSystemMessage(Lang.msg(player, "authmod.register.full"));
+            case HASH_FAILED, SAVE_FAILED -> player.sendSystemMessage(Lang.msg(player, "authmod.error.data_save"));
+        }
+    }
+
+    private static void finishPasswordChange(ServerPlayer player, String username,
+                                             AuthEventHandler.ChangeOutcome outcome) {
+        switch (outcome) {
+            case SUCCESS -> {
+                forEachOnlineMatch(username, other -> {
+                    if (other != player) AuthEventHandler.forceRelock(other);
+                });
+                player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.success"));
+            }
+            case WRONG_OLD -> player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.wrong_old"));
+            case CHANGED_DURING_CHECK -> player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.changed"));
+            case HASH_FAILED, SAVE_FAILED -> player.sendSystemMessage(Lang.msg(player, "authmod.error.data_save"));
         }
     }
 
@@ -260,8 +293,15 @@ public class AuthCommands {
             reply(context.getSource(), "authmod.password.too_short", AuthConfig.minPasswordLength());
             return 0;
         }
-        AuthData.setPlayerPassword(target, newPassword);
-        AuthData.save();
+        try {
+            if (!AuthData.setPlayerPasswordAndSave(target, newPassword)) {
+                reply(context.getSource(), "authmod.error.data_save");
+                return 0;
+            }
+        } catch (RuntimeException e) {
+            reply(context.getSource(), "authmod.error.data_save");
+            return 0;
+        }
         reply(context.getSource(), "authmod.admin.changepassword.success", target);
 
         forEachOnlineMatch(target, targetPlayer -> {
@@ -279,8 +319,15 @@ public class AuthCommands {
             reply(context.getSource(), "authmod.admin.player_not_registered", target);
             return 0;
         }
-        AuthData.removePlayer(target);
-        AuthData.save();
+        try {
+            if (!AuthData.removePlayerAndSave(target)) {
+                reply(context.getSource(), "authmod.error.data_save");
+                return 0;
+            }
+        } catch (RuntimeException e) {
+            reply(context.getSource(), "authmod.error.data_save");
+            return 0;
+        }
         reply(context.getSource(), "authmod.admin.resetpassword.success", target);
 
         forEachOnlineMatch(target, targetPlayer -> {

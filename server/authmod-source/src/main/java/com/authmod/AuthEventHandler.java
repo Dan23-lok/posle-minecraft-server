@@ -18,6 +18,9 @@ import net.minecraftforge.fml.common.Mod;
 import org.slf4j.Logger;
 
 import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
+import java.time.Duration;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
@@ -31,8 +34,18 @@ public class AuthEventHandler {
     private static final WeakHashMap<ServerPlayer, String> greetedLocale = new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer, Long> loginDeadlines = new WeakHashMap<>();
     private static LoginVerificationQueue loginVerifications;
+    private static RegistrationHashQueue registrationHashes;
+    private static RegistrationBudget registrationBudget;
+    private static PasswordChangeQueue passwordChanges;
+    private static RegistrationBudget passwordChangeBudget;
+    /** Accessed only on the Minecraft server thread. */
+    private static final Map<String, Object> pendingRegistrations = new HashMap<>();
 
     enum LoginOutcome { SUCCESS, WRONG_PASSWORD, PASSWORD_CHANGED }
+    enum RegistrationSubmission { ACCEPTED, ALREADY_PENDING, BUSY, RATE_LIMITED, FULL, ALREADY_REGISTERED, INVALID_INVITE, TIMED_OUT }
+    enum RegistrationOutcome { SUCCESS, ALREADY_REGISTERED, INVALID_INVITE, TIMED_OUT, FULL, HASH_FAILED, SAVE_FAILED }
+    enum ChangeSubmission { ACCEPTED, ALREADY_PENDING, BUSY, RATE_LIMITED }
+    enum ChangeOutcome { SUCCESS, WRONG_OLD, CHANGED_DURING_CHECK, HASH_FAILED, SAVE_FAILED }
     private static long loginDeadline() {
         return System.currentTimeMillis() + AuthConfig.loginTimeoutSeconds() * 1000L;
     }
@@ -42,6 +55,12 @@ public class AuthEventHandler {
         AuthData.init();
         InviteCode.load();
         loginVerifications = new LoginVerificationQueue(2, 8, PasswordHasher::verify);
+        registrationHashes = new RegistrationHashQueue(1, 2, PasswordHasher::hash);
+        registrationBudget = new RegistrationBudget(3, Duration.ofSeconds(10),
+                24, Duration.ofHours(1), System::nanoTime);
+        passwordChanges = new PasswordChangeQueue(1, 2, PasswordChangeQueue.DEFAULT_COMPUTER);
+        passwordChangeBudget = new RegistrationBudget(2, Duration.ofSeconds(30),
+                12, Duration.ofHours(1), System::nanoTime);
     }
 
     @SubscribeEvent
@@ -50,6 +69,17 @@ public class AuthEventHandler {
             loginVerifications.close();
             loginVerifications = null;
         }
+        if (registrationHashes != null) {
+            registrationHashes.close();
+            registrationHashes = null;
+        }
+        pendingRegistrations.clear();
+        registrationBudget = null;
+        if (passwordChanges != null) {
+            passwordChanges.close();
+            passwordChanges = null;
+        }
+        passwordChangeBudget = null;
         AuthData.save();
     }
 
@@ -75,6 +105,8 @@ public class AuthEventHandler {
     public static void onPlayerQuit(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             if (loginVerifications != null) loginVerifications.forget(player.connection);
+            forgetRegistration(player);
+            if (passwordChanges != null) passwordChanges.forget(player.connection);
             sessions.leave(player.getUUID(), player);
             LoginLimiter.reset(player.connection);
             lastPosition.remove(player);
@@ -91,6 +123,8 @@ public class AuthEventHandler {
                 || !(event.getEntity() instanceof ServerPlayer replacement)) return;
         if (!original.getUUID().equals(replacement.getUUID())) return;
         if (loginVerifications != null) loginVerifications.forget(original.connection);
+        forgetRegistration(original);
+        if (passwordChanges != null) passwordChanges.forget(original.connection);
 
         if (!sessions.transfer(original.getUUID(), original, replacement)) {
             // Missing state starts locked; a stale clone must not displace a newer connection.
@@ -263,21 +297,131 @@ public class AuthEventHandler {
 
     // === РЕГИСТРАЦИЯ / ВХОД ===
 
-    public static boolean registerPlayer(ServerPlayer player, String password) {
-        if (!sessions.isCurrent(player.getUUID(), player)) return false;
+    static RegistrationSubmission registerPlayer(ServerPlayer player, String password, String inviteCode,
+                                                  Consumer<RegistrationOutcome> onResult) {
+        if (!sessions.isCurrent(player.getUUID(), player)
+                || !player.connection.connection.isConnected()
+                || isAuthenticated(player)) return RegistrationSubmission.BUSY;
+        if (registrationExpired(player)) return RegistrationSubmission.TIMED_OUT;
+        if (!InviteCode.verify(inviteCode)) return RegistrationSubmission.INVALID_INVITE;
         String username = player.getGameProfile().getName().toLowerCase(Locale.ROOT);
-        if (AuthData.isRegistered(username)) return false;
-
-        AuthData.setPlayerPassword(username, password);
-        try {
-            AuthData.save();
-        } catch (RuntimeException e) {
-            AuthData.removePlayer(username);
-            throw e;
+        if (AuthData.isRegistered(username)) return RegistrationSubmission.ALREADY_REGISTERED;
+        if (pendingRegistrations.containsKey(username)) return RegistrationSubmission.ALREADY_PENDING;
+        if (AuthData.registeredPlayerCount() + pendingRegistrations.size()
+                >= AuthConfig.maxRegisteredAccounts()) return RegistrationSubmission.FULL;
+        RegistrationHashQueue queue = registrationHashes;
+        RegistrationBudget budget = registrationBudget;
+        if (queue == null || budget == null) return RegistrationSubmission.BUSY;
+        RegistrationBudget.Reservation reservation = budget.tryReserve();
+        if (reservation == null) return RegistrationSubmission.RATE_LIMITED;
+        Object connection = player.connection;
+        RegistrationHashQueue.Submission submitted = queue.submit(connection, password, player.server::execute, hash -> {
+            if (pendingRegistrations.get(username) == connection) pendingRegistrations.remove(username);
+            if (!sessions.isCurrent(player.getUUID(), player)
+                    || !player.connection.connection.isConnected()
+                    || isAuthenticated(player)) return;
+            if (registrationExpired(player)) {
+                onResult.accept(RegistrationOutcome.TIMED_OUT);
+                return;
+            }
+            if (!InviteCode.verify(inviteCode)) {
+                onResult.accept(RegistrationOutcome.INVALID_INVITE);
+                return;
+            }
+            if (AuthData.isRegistered(username)) {
+                onResult.accept(RegistrationOutcome.ALREADY_REGISTERED);
+                return;
+            }
+            if (AuthData.registeredPlayerCount() >= AuthConfig.maxRegisteredAccounts()) {
+                onResult.accept(RegistrationOutcome.FULL);
+                return;
+            }
+            if (hash == null) {
+                onResult.accept(RegistrationOutcome.HASH_FAILED);
+                return;
+            }
+            try {
+                if (!AuthData.registerHashedAndSave(username, hash)) {
+                    onResult.accept(RegistrationOutcome.ALREADY_REGISTERED);
+                    return;
+                }
+            } catch (RuntimeException e) {
+                LOGGER.error("[AuthMod] Registration persistence failed for {}: {}", username, e.toString());
+                onResult.accept(RegistrationOutcome.SAVE_FAILED);
+                return;
+            }
+            if (sessions.authenticate(player.getUUID(), player)) {
+                restorePlayer(player);
+                onResult.accept(RegistrationOutcome.SUCCESS);
+            }
+        });
+        if (submitted != RegistrationHashQueue.Submission.ACCEPTED) {
+            reservation.refund();
+            return submitted == RegistrationHashQueue.Submission.ALREADY_PENDING
+                    ? RegistrationSubmission.ALREADY_PENDING : RegistrationSubmission.BUSY;
         }
-        sessions.authenticate(player.getUUID(), player);
-        restorePlayer(player);
-        return true;
+        pendingRegistrations.put(username, connection);
+        return RegistrationSubmission.ACCEPTED;
+    }
+
+    private static boolean registrationExpired(ServerPlayer player) {
+        Long deadline = loginDeadlines.get(player);
+        return deadline == null || System.currentTimeMillis() >= deadline;
+    }
+
+    private static void forgetRegistration(ServerPlayer player) {
+        if (registrationHashes != null) registrationHashes.forget(player.connection);
+        pendingRegistrations.entrySet().removeIf(entry -> entry.getValue() == player.connection);
+    }
+
+    static ChangeSubmission changeOwnPassword(ServerPlayer player, String oldPassword, String newPassword,
+                                               Consumer<ChangeOutcome> onResult) {
+        if (!sessions.isCurrent(player.getUUID(), player)
+                || !isAuthenticated(player)
+                || !player.connection.connection.isConnected()) return ChangeSubmission.BUSY;
+        String username = player.getGameProfile().getName().toLowerCase(Locale.ROOT);
+        String stored = AuthData.getStoredPassword(username);
+        if (stored == null) return ChangeSubmission.BUSY;
+        PasswordChangeQueue queue = passwordChanges;
+        RegistrationBudget budget = passwordChangeBudget;
+        if (queue == null || budget == null) return ChangeSubmission.BUSY;
+        RegistrationBudget.Reservation reservation = budget.tryReserve();
+        if (reservation == null) return ChangeSubmission.RATE_LIMITED;
+        PasswordChangeQueue.Submission submitted = queue.submit(player.connection, oldPassword, newPassword,
+                stored, player.server::execute, result -> {
+                    if (!sessions.isCurrent(player.getUUID(), player)
+                            || !isAuthenticated(player)
+                            || !player.connection.connection.isConnected()) return;
+                    if (!stored.equals(AuthData.getStoredPassword(username))) {
+                        onResult.accept(ChangeOutcome.CHANGED_DURING_CHECK);
+                        return;
+                    }
+                    if (!result.oldVerified()) {
+                        onResult.accept(ChangeOutcome.WRONG_OLD);
+                        return;
+                    }
+                    if (result.newHash() == null) {
+                        onResult.accept(ChangeOutcome.HASH_FAILED);
+                        return;
+                    }
+                    try {
+                        if (!AuthData.replacePasswordHashAndSave(username, stored, result.newHash())) {
+                            onResult.accept(ChangeOutcome.CHANGED_DURING_CHECK);
+                            return;
+                        }
+                    } catch (RuntimeException e) {
+                        LOGGER.error("[AuthMod] Password-change persistence failed for {}: {}", username, e.toString());
+                        onResult.accept(ChangeOutcome.SAVE_FAILED);
+                        return;
+                    }
+                    onResult.accept(ChangeOutcome.SUCCESS);
+                });
+        if (submitted != PasswordChangeQueue.Submission.ACCEPTED) {
+            reservation.refund();
+            return submitted == PasswordChangeQueue.Submission.ALREADY_PENDING
+                    ? ChangeSubmission.ALREADY_PENDING : ChangeSubmission.BUSY;
+        }
+        return ChangeSubmission.ACCEPTED;
     }
 
     public static boolean loginPlayer(ServerPlayer player, String password) {
@@ -330,6 +474,8 @@ public class AuthEventHandler {
     /** Повторная блокировка онлайн-игрока (например, после сброса пароля админом). */
     public static void forceRelock(ServerPlayer player) {
         if (loginVerifications != null) loginVerifications.forget(player.connection);
+        forgetRegistration(player);
+        if (passwordChanges != null) passwordChanges.forget(player.connection);
         sessions.relock(player.getUUID(), player);
         LoginLimiter.reset(player.connection);
         loginDeadlines.put(player, loginDeadline());
