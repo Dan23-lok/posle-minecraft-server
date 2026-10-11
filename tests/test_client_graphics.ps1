@@ -31,8 +31,74 @@ function Assert-Equal {
 }
 
 function Hardware {
-    param([double]$RamGb, [int]$CpuCores, [string]$GpuNames)
-    return [pscustomobject]@{ RamGb=$RamGb; CpuCores=$CpuCores; GpuNames=$GpuNames }
+    param([double]$RamGb, [int]$CpuCores, [string]$GpuNames,
+        [double]$AvailableRamGb = -1, [long]$DisplayPixels = 0,
+        [bool]$GpuSelectionUncertain = $false)
+    return [pscustomobject]@{
+        RamGb=$RamGb; CpuCores=$CpuCores; GpuNames=$GpuNames
+        AvailableRamGb=$AvailableRamGb; DisplayPixels=$DisplayPixels
+        GpuSelectionUncertain=$GpuSelectionUncertain
+    }
+}
+
+# Exercise the real detection function with deterministic CIM responses. A
+# missing optional adapter query must not discard known RAM/CPU information.
+function Get-CimInstance {
+    param([string]$ClassName, $ErrorAction)
+    switch ($ClassName) {
+        'Win32_ComputerSystem' { return [pscustomobject]@{ TotalPhysicalMemory=[long](16GB) } }
+        'Win32_Processor' { return [pscustomobject]@{ NumberOfCores=8 } }
+        'Win32_VideoController' {
+            if ($script:fakeGpuFailure) { throw 'Video controller query unavailable' }
+            if ($script:fakeGpuMode -eq 'integrated-active') {
+                return @(
+                    [pscustomobject]@{ Name='Intel UHD Graphics'; CurrentHorizontalResolution=1920; CurrentVerticalResolution=1080 },
+                    [pscustomobject]@{ Name='NVIDIA GeForce RTX 4080'; CurrentHorizontalResolution=0; CurrentVerticalResolution=0 }
+                )
+            }
+            if ($script:fakeGpuMode -eq 'both-active') {
+                return @(
+                    [pscustomobject]@{ Name='Intel UHD Graphics'; CurrentHorizontalResolution=1920; CurrentVerticalResolution=1080 },
+                    [pscustomobject]@{ Name='NVIDIA GeForce RTX 4080'; CurrentHorizontalResolution=2560; CurrentVerticalResolution=1440 }
+                )
+            }
+            return [pscustomobject]@{
+                Name='NVIDIA GeForce RTX 3060'
+                CurrentHorizontalResolution=3840
+                CurrentVerticalResolution=2160
+            }
+        }
+        'Win32_OperatingSystem' { return [pscustomobject]@{ FreePhysicalMemory=[long](2GB / 1KB) } }
+        default { throw "Unexpected CIM class: $ClassName" }
+    }
+}
+try {
+    $detected = Get-ClientHardware
+    Assert-Equal 16 $detected.RamGb 'CIM total RAM in GiB'
+    Assert-Equal 8 $detected.CpuCores 'CIM physical cores'
+    Assert-Equal 2 $detected.AvailableRamGb 'CIM free RAM in GiB'
+    Assert-Equal (3840 * 2160) $detected.DisplayPixels 'CIM display pixels'
+    $script:fakeGpuFailure = $true
+    $noGpu = Get-ClientHardware
+    Assert-Equal 16 $noGpu.RamGb 'GPU query failure keeps total RAM'
+    Assert-Equal 8 $noGpu.CpuCores 'GPU query failure keeps CPU cores'
+    Assert-Equal '' $noGpu.GpuNames 'GPU query failure uses unknown GPU'
+    Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $noGpu) 'GPU query failure selects safe profile'
+    $script:fakeGpuFailure = $false
+    $script:fakeGpuMode = 'integrated-active'
+    $integratedActive = Get-ClientHardware
+    Assert-Equal 'Intel UHD Graphics' $integratedActive.GpuNames 'inactive RTX cannot determine render GPU'
+    Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $integratedActive) 'integrated-active laptop chooses Low'
+    Assert-Equal 'false' (Get-GraphicsPlan -Profile Low -Hardware $integratedActive).OculusSettings.enableShaders 'inactive RTX does not enable DMS'
+    $script:fakeGpuMode = 'both-active'
+    $mixedActive = Get-ClientHardware
+    Assert-Equal $true $mixedActive.GpuSelectionUncertain 'two active adapters are ambiguous'
+    Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $mixedActive) 'mixed active adapters choose Low'
+    Assert-Equal 'false' (Get-GraphicsPlan -Profile Low -Hardware $mixedActive).OculusSettings.enableShaders 'mixed adapters do not enable DMS'
+} finally {
+    Remove-Item -Path Function:\Get-CimInstance -Force
+    Remove-Variable -Name fakeGpuFailure -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name fakeGpuMode -Scope Script -ErrorAction SilentlyContinue
 }
 
 $rtx = Hardware 32 8 'NVIDIA GeForce RTX 4080'
@@ -51,6 +117,13 @@ Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $basic) 'software adapter 
 Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $oldGpu) 'older GPU caps quality'
 Assert-Equal 'Balanced' (Get-AutoGraphicsProfile -Hardware $newerRadeon) 'four-digit Radeon is not mistaken for RX 570'
 Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $null) 'missing hardware info is safe'
+$memoryPressure = Hardware 32 8 'NVIDIA GeForce RTX 4080' 2.5
+$fourKMid = Hardware 32 8 'NVIDIA GeForce RTX 3060' 20 (3840 * 2160)
+$fourKHigh = Hardware 32 8 'NVIDIA GeForce RTX 4080' 20 (3840 * 2160)
+Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $memoryPressure) 'low free memory caps auto quality'
+Assert-Equal 'Low' (Get-AutoGraphicsProfile -Hardware $fourKMid) '4K on midrange GPU selects low'
+Assert-Equal 'Balanced' (Get-AutoGraphicsProfile -Hardware $fourKHigh) '4K caps automatic cinematic profile'
+Assert-Equal 'Cinematic' (Resolve-GraphicsProfile -RequestedProfile Cinematic -PreviousReceipt $null -Hardware $fourKHigh) 'player can override 4K auto cap'
 
 $previous = [pscustomobject]@{ graphics_profile='Cinematic' }
 Assert-Equal 'Cinematic' (Resolve-GraphicsProfile -RequestedProfile Auto -PreviousReceipt $previous -Hardware $weakRam) 'implicit rerun preserves chosen profile'
@@ -69,6 +142,12 @@ Assert-Equal '0.0' $lowOnBasic.VideoSettings.gamma 'no-shader fallback keeps low
 
 $unknownGpu = Get-GraphicsPlan -Profile Cinematic -Hardware $null
 Assert-Equal 'false' $unknownGpu.OculusSettings.enableShaders 'unknown hardware cannot force shader'
+$lowOnMemoryPressure = Get-GraphicsPlan -Profile Low -Hardware $memoryPressure
+Assert-Equal 'false' $lowOnMemoryPressure.OculusSettings.enableShaders 'low free memory does not start shader'
+$optInShader = Get-GraphicsPlan -Profile Low -Hardware $memoryPressure -AllowShaderUnderMemoryPressure
+Assert-Equal 'true' $optInShader.OculusSettings.enableShaders 'explicit shader opt-in bypasses memory pressure only'
+$unsafeOptIn = Get-GraphicsPlan -Profile Low -Hardware $basic -AllowShaderUnderMemoryPressure
+Assert-Equal 'false' $unsafeOptIn.OculusSettings.enableShaders 'shader opt-in does not bypass GPU guard'
 
 $balanced = Get-GraphicsPlan -Profile Balanced -Hardware $mid
 Assert-Equal 'true' $balanced.OculusSettings.enableShaders 'Balanced uses DMS on modern GPU'
@@ -196,6 +275,87 @@ try {
     }
     $testManifest | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath (Join-Path $scratchFull 'client-modpack.json') -Encoding UTF8
+    foreach ($profileChoice in @('Low', 'Cinematic')) {
+        $profileClient = Join-Path $scratchFull ("clean-$profileChoice")
+        $profileMod = Join-Path $profileClient 'mods\graphics-fixture.jar'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $profileMod) -Force | Out-Null
+        Copy-Item -LiteralPath $fixtureMod -Destination $profileMod
+        & $copiedInstaller -MinecraftDirectory $profileClient -SkipForge -GraphicsProfile $profileChoice | Out-Null
+        $profileReceipt = Get-Content -LiteralPath (Join-Path $profileClient 'horror-apocalypse-install.json') `
+            -Raw | ConvertFrom-Json
+        Assert-Equal $profileChoice $profileReceipt.graphics_profile "clean $profileChoice receipt"
+        $profileOptions = Get-Content -LiteralPath (Join-Path $profileClient 'options.txt')
+        $profilePlan = Get-GraphicsPlan -Profile $profileChoice -Hardware (Get-ClientHardware)
+        Assert-Equal ("renderDistance:" + $profilePlan.VideoSettings.renderDistance) (
+            @($profileOptions | Where-Object { $_ -like 'renderDistance:*' })[0]
+        ) "clean $profileChoice render distance"
+        Assert-Equal 'gamma:0.0' (
+            @($profileOptions | Where-Object { $_ -like 'gamma:*' })[0]
+        ) "clean $profileChoice dark gamma"
+        Assert-Equal ("enableShaders=" + $profilePlan.OculusSettings.enableShaders) (
+            @(Get-Content -LiteralPath (Join-Path $profileClient 'config\oculus.properties') |
+                Where-Object { $_ -like 'enableShaders=*' })[0]
+        ) "clean $profileChoice Oculus setting"
+        if ($profileChoice -eq 'Low') {
+            & $copiedInstaller -MinecraftDirectory $profileClient -SkipForge `
+                -AllowShaderUnderMemoryPressure | Out-Null
+            $overrideReceipt = Get-Content -LiteralPath (Join-Path $profileClient 'horror-apocalypse-install.json') `
+                -Raw | ConvertFrom-Json
+            Assert-Equal $true $overrideReceipt.allow_shader_under_memory_pressure 'shader opt-in recorded'
+            & $copiedInstaller -MinecraftDirectory $profileClient -SkipForge | Out-Null
+            $overrideReceipt = Get-Content -LiteralPath (Join-Path $profileClient 'horror-apocalypse-install.json') `
+                -Raw | ConvertFrom-Json
+            Assert-Equal $true $overrideReceipt.allow_shader_under_memory_pressure 'shader opt-in retained on rerun'
+            $testManifest.pack_version = 'optin-update'
+            $testManifest | ConvertTo-Json -Depth 4 |
+                Set-Content -LiteralPath (Join-Path $scratchFull 'client-modpack.json') -Encoding UTF8
+            & $copiedInstaller -MinecraftDirectory $profileClient -SkipForge | Out-Null
+            $overrideReceipt = Get-Content -LiteralPath (Join-Path $profileClient 'horror-apocalypse-install.json') `
+                -Raw | ConvertFrom-Json
+            Assert-Equal $true $overrideReceipt.allow_shader_under_memory_pressure 'shader opt-in retained on pack update'
+            & $copiedInstaller -MinecraftDirectory $profileClient -SkipForge -NoShader | Out-Null
+            $overrideReceipt = Get-Content -LiteralPath (Join-Path $profileClient 'horror-apocalypse-install.json') `
+                -Raw | ConvertFrom-Json
+            Assert-Equal $false $overrideReceipt.allow_shader_under_memory_pressure 'NoShader clears shader opt-in'
+            $testManifest.pack_version = 'same-version'
+            $testManifest | ConvertTo-Json -Depth 4 |
+                Set-Content -LiteralPath (Join-Path $scratchFull 'client-modpack.json') -Encoding UTF8
+        }
+    }
+    # Clean install with a known GPU but only 2 GiB free: verify the policy
+    # reaches the written client config, rather than only testing pure logic.
+    $lowMemoryClient = Join-Path $scratchFull 'clean-low-memory'
+    $lowMemoryMod = Join-Path $lowMemoryClient 'mods\graphics-fixture.jar'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $lowMemoryMod) -Force | Out-Null
+    Copy-Item -LiteralPath $fixtureMod -Destination $lowMemoryMod
+    function Get-CimInstance {
+        param([string]$ClassName, $ErrorAction)
+        switch ($ClassName) {
+            'Win32_ComputerSystem' { return [pscustomobject]@{ TotalPhysicalMemory=[long](16GB) } }
+            'Win32_Processor' { return [pscustomobject]@{ NumberOfCores=8 } }
+            'Win32_VideoController' { return [pscustomobject]@{
+                Name='NVIDIA GeForce RTX 3060'; CurrentHorizontalResolution=1920; CurrentVerticalResolution=1080
+            } }
+            'Win32_OperatingSystem' { return [pscustomobject]@{ FreePhysicalMemory=[long](2GB / 1KB) } }
+            default { throw "Unexpected CIM class: $ClassName" }
+        }
+    }
+    try {
+        & $copiedInstaller -MinecraftDirectory $lowMemoryClient -SkipForge | Out-Null
+    } finally {
+        Remove-Item -Path Function:\Get-CimInstance -Force
+    }
+    $lowMemoryReceipt = Get-Content -LiteralPath (Join-Path $lowMemoryClient 'horror-apocalypse-install.json') `
+        -Raw | ConvertFrom-Json
+    Assert-Equal 'Low' $lowMemoryReceipt.graphics_profile 'clean low-memory install selected Low'
+    Assert-Equal 'enableShaders=false' (
+        @(Get-Content -LiteralPath (Join-Path $lowMemoryClient 'config\oculus.properties') |
+            Where-Object { $_ -like 'enableShaders=*' })[0]
+    ) 'clean low-memory install disabled DMS'
+    Assert-Equal 'gamma:0.0' (
+        @(Get-Content -LiteralPath (Join-Path $lowMemoryClient 'options.txt') |
+            Where-Object { $_ -like 'gamma:*' })[0]
+    ) 'clean low-memory install keeps darkest vanilla gamma'
     & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge -NoShader | Out-Null
     $oculusPath = Join-Path $scratchClient 'config\oculus.properties'
     $scratchReceipt = Join-Path $scratchClient 'horror-apocalypse-install.json'
@@ -238,6 +398,31 @@ try {
     Assert-Equal 'enableShaders=user-choice' (
         @(Get-Content -LiteralPath $oculusPath | Where-Object { $_ -like 'enableShaders=*' })[0]
     ) 'resource-pack toggle does not change Oculus'
+    # Simulate a v9 receipt: the new policy cannot infer whether the old tier
+    # or Oculus setting was chosen manually, so both stay unchanged until an
+    # explicit -GraphicsProfile Auto request.
+    $legacyReceipt = Get-Content -LiteralPath $scratchReceipt -Raw | ConvertFrom-Json
+    $legacyReceipt.PSObject.Properties.Remove('graphics_policy_revision')
+    $legacyReceipt.PSObject.Properties.Remove('graphics_profile_source')
+    $legacyReceipt.PSObject.Properties.Remove('allow_shader_under_memory_pressure')
+    $legacyReceipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $scratchReceipt -Encoding UTF8
+    [IO.File]::WriteAllText($oculusPath, "enableShaders=user-choice`n")
+    & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge | Out-Null
+    $migratedReceipt = Get-Content -LiteralPath $scratchReceipt -Raw | ConvertFrom-Json
+    Assert-Equal 2 $migratedReceipt.graphics_policy_revision 'v9 graphics policy migrated'
+    Assert-Equal 'legacy' $migratedReceipt.graphics_profile_source 'v9 selection provenance remains unknown'
+    Assert-Equal 'renderDistance:11' (
+        @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'renderDistance:*' })[0]
+    ) 'v9 migration preserves player render distance'
+    Assert-Equal 'fov:0.7' (
+        @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'fov:*' })[0]
+    ) 'v9 migration preserves player FOV'
+    Assert-Equal 'enableShaders=user-choice' (
+        @(Get-Content -LiteralPath $oculusPath | Where-Object { $_ -like 'enableShaders=*' })[0]
+    ) 'v9 migration preserves manual Oculus choice'
+    $policyBackups = @(Get-ChildItem -LiteralPath (Split-Path -Parent $oculusPath) `
+        -Filter 'oculus.properties.before-posle-policy-v2-*.backup' -File)
+    Assert-Equal 0 $policyBackups.Count 'v9 migration does not create an unnecessary backup'
     $testManifest.pack_version = 'updated-version'
     $testManifest | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath (Join-Path $scratchFull 'client-modpack.json') -Encoding UTF8

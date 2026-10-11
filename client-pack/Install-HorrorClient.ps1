@@ -4,6 +4,7 @@ param(
     [ValidateSet('Auto', 'Low', 'Balanced', 'Cinematic')]
     [string]$GraphicsProfile = 'Auto',
     [switch]$NoShader,
+    [switch]$AllowShaderUnderMemoryPressure,
     [switch]$NoResourcePack,
     [switch]$SkipForge,
     [switch]$OfferWebsitePlay,
@@ -14,6 +15,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+if ($NoShader -and $AllowShaderUnderMemoryPressure) {
+    throw 'Choose either -NoShader or -AllowShaderUnderMemoryPressure, not both.'
+}
 Add-Type -AssemblyName System.Net.Http
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $forgeReadinessPath = Join-Path $PSScriptRoot 'Forge-ClientReadiness.ps1'
@@ -50,6 +54,7 @@ if ($historicalManifest.pack -ne $manifest.pack -or
 }
 $animationPatchName = 'BornInChaosAnimationFix-local.zip'
 $animationPatchRevision = 1
+$graphicsPolicyRevision = 2
 $animationPatchEnabled = $null -ne $manifest.local_animation_patch
 if ($animationPatchEnabled -and ($manifest.local_animation_patch.kind -cne 'born-in-chaos-1.7.5' -or
     $manifest.local_animation_patch.revision -ne $animationPatchRevision)) {
@@ -246,15 +251,43 @@ function Get-ClientHardware {
     try {
         $system = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
         $processors = @(Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop)
-        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop)
         $cores = ($processors | Measure-Object -Property NumberOfCores -Sum).Sum
         if (-not $system.TotalPhysicalMemory -or -not $cores) {
             throw 'Missing RAM or CPU core count'
         }
+        # Optional WMI queries can fail on restricted systems. Preserve the
+        # known CPU/RAM data and select Low when the GPU is unidentified.
+        try { $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop) }
+        catch { $gpus = @() }
+        $displayPixels = [long]0
+        $activeGpus = New-Object 'System.Collections.Generic.List[object]'
+        foreach ($gpu in $gpus) {
+            $width = [long]$gpu.CurrentHorizontalResolution
+            $height = [long]$gpu.CurrentVerticalResolution
+            if ($width -gt 0 -and $height -gt 0) {
+                $displayPixels = [Math]::Max($displayPixels, ($width * $height))
+                $activeGpus.Add($gpu)
+            }
+        }
+        # WMI cannot identify the GPU Minecraft will actually render on.
+        # Multiple active adapters or no active adapter are ambiguous, so do
+        # not infer shader support from an inactive discrete adapter.
+        $gpuUncertain = $activeGpus.Count -ne 1 -or
+            [string]::IsNullOrWhiteSpace([string]$activeGpus[0].Name)
+        $availableRamGb = -1.0
+        try {
+            $operatingSystem = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+            if ($null -ne $operatingSystem.FreePhysicalMemory) {
+                $availableRamGb = [double]$operatingSystem.FreePhysicalMemory / 1MB
+            }
+        } catch { }
         return [pscustomobject]@{
             RamGb = [double]$system.TotalPhysicalMemory / 1GB
             CpuCores = [int]$cores
-            GpuNames = (($gpus | ForEach-Object { $_.Name }) -join ' ')
+            GpuNames = (($activeGpus | ForEach-Object { $_.Name }) -join ' ')
+            GpuSelectionUncertain = [bool]$gpuUncertain
+            AvailableRamGb = $availableRamGb
+            DisplayPixels = $displayPixels
         }
     } catch {
         Write-Warning 'Hardware detection was unavailable; using a conservative graphics plan.'
@@ -268,15 +301,27 @@ function Get-AutoGraphicsProfile {
     $ramGb = [double]$Hardware.RamGb
     $cpuCores = [int]$Hardware.CpuCores
     $gpuNames = [string]$Hardware.GpuNames
+    if ($Hardware.PSObject.Properties['GpuSelectionUncertain'] -and
+        $Hardware.GpuSelectionUncertain) { return 'Low' }
+    $availableRamGb = if ($Hardware.PSObject.Properties['AvailableRamGb']) {
+        [double]$Hardware.AvailableRamGb
+    } else { -1.0 }
+    $displayPixels = if ($Hardware.PSObject.Properties['DisplayPixels']) {
+        [long]$Hardware.DisplayPixels
+    } else { [long]0 }
     $discreteGpu = $gpuNames -match 'GeForce|Radeon RX|Intel Arc|NVIDIA RTX'
     $olderGpu = $gpuNames -match 'GeForce GTX ([6-9][0-9]{2}|10[0-5]0|16[0-5]0)\b' -or
         $gpuNames -match 'Radeon RX [4-5][0-9]{2}\b|Intel Arc A3[0-9]{2}\b'
-    if ($ramGb -lt 12 -or $cpuCores -lt 4 -or -not $discreteGpu -or $olderGpu) {
+    if ($ramGb -lt 12 -or $cpuCores -lt 4 -or -not $discreteGpu -or $olderGpu -or
+        ($availableRamGb -ge 0 -and $availableRamGb -lt 4)) {
         return 'Low'
     }
     $strongGpu = $gpuNames -match 'GeForce RTX (30[7-9]0|40[7-9]0|50[7-9]0|60[7-9]0)\b' -or
         $gpuNames -match 'Radeon RX (67|68|69|77|78|79|87|88|89)[0-9]{2}\b'
-    if ($ramGb -ge 24 -and $cpuCores -ge 6 -and $strongGpu) {
+    # At 4K start one tier lower; the player can choose a higher profile.
+    if ($displayPixels -ge 7000000 -and -not $strongGpu) { return 'Low' }
+    if ($ramGb -ge 24 -and $cpuCores -ge 6 -and $strongGpu -and
+        $displayPixels -lt 7000000) {
         return 'Cinematic'
     }
     return 'Balanced'
@@ -301,14 +346,22 @@ function Get-GraphicsPlan {
     param(
         [ValidateSet('Low', 'Balanced', 'Cinematic')][string]$Profile,
         $Hardware,
-        [switch]$NoShader
+        [switch]$NoShader,
+        [switch]$AllowShaderUnderMemoryPressure
     )
     $gpuNames = if ($Hardware) { [string]$Hardware.GpuNames } else { '' }
+    $gpuCertain = -not ($Hardware -and $Hardware.PSObject.Properties['GpuSelectionUncertain'] -and
+        $Hardware.GpuSelectionUncertain)
     # The bundled DMS shader is listed as a low-end shader by its author, but
     # adapter names cannot prove OpenGL compatibility or actual frame rate.
     $shaderGpu = $gpuNames -match 'GeForce GTX (9[0-9]{2}|10[0-9]{2}|16[0-9]{2})\b|GeForce RTX|NVIDIA RTX|Radeon RX [5-9][0-9]{3}\b|Intel Arc'
+    $availableRamGb = if ($Hardware -and $Hardware.PSObject.Properties['AvailableRamGb']) {
+        [double]$Hardware.AvailableRamGb
+    } else { -1.0 }
     $enableShader = (-not $NoShader.IsPresent) -and $Hardware -and
-        ([double]$Hardware.RamGb -ge 12) -and ([int]$Hardware.CpuCores -ge 4) -and $shaderGpu
+        ([double]$Hardware.RamGb -ge 12) -and ([int]$Hardware.CpuCores -ge 4) -and
+        ($availableRamGb -lt 0 -or $availableRamGb -ge 4 -or
+            $AllowShaderUnderMemoryPressure.IsPresent) -and $gpuCertain -and $shaderGpu
     $video = switch ($Profile) {
         'Low' { [ordered]@{ renderDistance='6'; simulationDistance='5'; graphicsMode='0'; particles='2'; entityShadows='false'; entityDistanceScaling='0.5'; mipmapLevels='2'; maxFps='60'; gamma='0.0' } }
         'Balanced' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='1'; entityShadows='false'; entityDistanceScaling='0.75'; mipmapLevels='4'; maxFps='90'; gamma='0.0' } }
@@ -536,9 +589,29 @@ if (-not $stageRoot.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)
 New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
 try {
 $hardware = Get-ClientHardware
+$graphicsPolicyMigration = $previousInstall -and
+    ([int]$previousReceipt.graphics_policy_revision -lt $graphicsPolicyRevision)
+$allowShaderUnderMemoryPressure = $AllowShaderUnderMemoryPressure.IsPresent -or
+    ($previousReceipt.allow_shader_under_memory_pressure -eq $true -and -not $NoShader.IsPresent)
 $resolvedProfile = Resolve-GraphicsProfile -RequestedProfile $GraphicsProfile -PreviousReceipt $previousReceipt `
     -Hardware $hardware -ExplicitChoice:($PSBoundParameters.ContainsKey('GraphicsProfile'))
+$graphicsProfileSource = if ($PSBoundParameters.ContainsKey('GraphicsProfile')) {
+    if ($GraphicsProfile -eq 'Auto') { 'auto' } else { 'manual' }
+} elseif ($previousReceipt.graphics_profile_source -in @('auto', 'manual', 'legacy')) {
+    $previousReceipt.graphics_profile_source
+} elseif ($previousInstall) { 'legacy' } else { 'auto' }
 Write-Host "Graphics profile: $resolvedProfile"
+if ($graphicsPolicyMigration -and -not $PSBoundParameters.ContainsKey('GraphicsProfile')) {
+    Write-Warning 'Graphics policy updated. Existing video and Oculus settings were preserved. Run with -GraphicsProfile Auto to apply the new hardware policy.'
+}
+if ($hardware -and $hardware.AvailableRamGb -ge 0 -and $hardware.AvailableRamGb -lt 4 -and
+    -not $NoShader.IsPresent -and -not $allowShaderUnderMemoryPressure) {
+    if ($graphicsPolicyMigration -and -not $PSBoundParameters.ContainsKey('GraphicsProfile')) {
+        Write-Warning 'Less than 4 GiB RAM is free; the previous shader choice remains unchanged. Close other apps and rerun with -GraphicsProfile Auto to apply the new safety rule.'
+    } else {
+        Write-Warning 'Less than 4 GiB RAM is currently free: DMS starts disabled. Close other apps and rerun with -GraphicsProfile Auto, or opt in with -AllowShaderUnderMemoryPressure if your GPU supports DMS.'
+    }
+}
 $managedFiles = New-Object 'System.Collections.Generic.List[object]'
 $candidateFiles = New-Object 'System.Collections.Generic.List[object]'
 $targetPaths = @{}
@@ -835,9 +908,11 @@ try {
 $applyVideoProfile = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
     $previousReceipt.pack_version -ne $manifest.pack_version
 $applyOculus = $applyVideoProfile -or $NoShader.IsPresent -or
+    $AllowShaderUnderMemoryPressure.IsPresent -or
     ($previousReceipt.no_shader -eq $true -and -not $NoShader.IsPresent)
 if ($applyVideoProfile -or $applyOculus) {
-    $graphicsPlan = Get-GraphicsPlan -Profile $resolvedProfile -Hardware $hardware -NoShader:$NoShader
+    $graphicsPlan = Get-GraphicsPlan -Profile $resolvedProfile -Hardware $hardware -NoShader:$NoShader `
+        -AllowShaderUnderMemoryPressure:$allowShaderUnderMemoryPressure
     if ($applyVideoProfile) {
         Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'options.txt') -Separator ':' -Values $graphicsPlan.VideoSettings
     }
@@ -901,7 +976,10 @@ $receipt = [ordered]@{
     installed_at = (Get-Date).ToString('o')
     minecraft_directory = $MinecraftDirectory
     graphics_profile = $resolvedProfile
+    graphics_profile_source = $graphicsProfileSource
+    graphics_policy_revision = $graphicsPolicyRevision
     no_shader = $NoShader.IsPresent
+    allow_shader_under_memory_pressure = [bool]$allowShaderUnderMemoryPressure
     no_resource_pack = $NoResourcePack.IsPresent
     forge_installed = $forgeReady
     shader_installed = (@($managedFiles | Where-Object {
