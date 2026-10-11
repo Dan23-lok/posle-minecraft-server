@@ -1,0 +1,151 @@
+# Read-only integrity check shared by the installer and the local Play helper.
+# Mojang 1.20.1 metadata: https://piston-meta.mojang.com/v1/packages/760a390e336b2b6202ec5906757cee3a929a7c85/1.20.1.json
+# The official Forge installer leaves an inherited profile. TLauncher may later
+# merge it with the vanilla profile. Both forms refer to the same Mojang JAR.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+function Assert-ForgeNoReparsePoint {
+    param([string]$Path)
+    $current = [IO.Path]::GetFullPath($Path)
+    while ($current) {
+        if (Test-Path -LiteralPath $current) {
+            $item = Get-Item -LiteralPath $current -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Refusing to use a symlink or junction: $current"
+            }
+        }
+        $parent = [IO.Path]::GetDirectoryName($current.TrimEnd('\', '/'))
+        if (-not $parent -or $parent -eq $current) { break }
+        $current = $parent
+    }
+}
+
+function Test-ForgePinnedFile {
+    param([string]$Path, [long]$Size, [string]$Sha1)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    if ((Get-Item -LiteralPath $Path).Length -ne $Size) { return $false }
+    return (Get-FileHash -LiteralPath $Path -Algorithm SHA1).Hash.Equals(
+        $Sha1, [StringComparison]::OrdinalIgnoreCase)
+}
+
+function Test-ForgeReady {
+    param([string]$ClientRoot, [string]$VersionId)
+    if ($VersionId -cne '1.20.1-forge-47.4.10') { return $false }
+    $minecraftClientSha1 = '0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838'
+    $minecraftClientSize = 23028853L
+    $minecraftClientUrl = 'https://piston-data.mojang.com/v1/objects/0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838/client.jar'
+    $clientRootFull = [IO.Path]::GetFullPath($ClientRoot)
+    $versionFolder = Join-Path (Join-Path $clientRootFull 'versions') $VersionId
+    $profilePath = Join-Path $versionFolder "$VersionId.json"
+    $forgeJar = Join-Path $clientRootFull 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
+    $librariesRoot = Join-Path $clientRootFull 'libraries'
+    foreach ($path in @($clientRootFull, $profilePath, $forgeJar, $librariesRoot)) {
+        Assert-ForgeNoReparsePoint -Path $path
+    }
+    if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $forgeJar -PathType Leaf)) { return $false }
+    try { $profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json }
+    catch { return $false }
+    if ($profile.id -cne $VersionId -or
+        $profile.mainClass -cne 'cpw.mods.bootstraplauncher.BootstrapLauncher' -or
+        @($profile.libraries).Count -eq 0) { return $false }
+
+    $inherited = $profile.inheritsFrom -ceq '1.20.1'
+    if (-not $inherited -and -not [string]::IsNullOrEmpty([string]$profile.inheritsFrom)) {
+        return $false
+    }
+    if ($inherited) {
+        # Forge's official child profile inherits Java 17 and the client JAR
+        # from the pinned Mojang 1.20.1 release. It does not copy those fields.
+        if ($profile.javaVersion -or $profile.downloads.client) { return $false }
+        $clientJar = Join-Path $clientRootFull 'versions\1.20.1\1.20.1.jar'
+    } else {
+        if ($profile.javaVersion.majorVersion -ne 17 -or -not $profile.downloads.client) {
+            return $false
+        }
+        $clientMetadata = $profile.downloads.client
+        if ([string]$clientMetadata.sha1 -ine $minecraftClientSha1 -or
+            $clientMetadata.size -ne $minecraftClientSize -or
+            ($clientMetadata.url -and $clientMetadata.url -cne $minecraftClientUrl)) {
+            return $false
+        }
+        $clientJar = Join-Path $versionFolder "$VersionId.jar"
+    }
+    Assert-ForgeNoReparsePoint -Path $clientJar
+    if (-not (Test-ForgePinnedFile -Path $clientJar -Size $minecraftClientSize -Sha1 $minecraftClientSha1)) {
+        return $false
+    }
+
+    $gameArguments = [Collections.Generic.List[string]]::new()
+    foreach ($entry in @($profile.arguments.game)) {
+        $values = if ($entry -is [string]) { @($entry) } else { @($entry.values) }
+        if ($values.Count -eq 0) { return $false }
+        foreach ($value in $values) {
+            if ($value -isnot [string]) { return $false }
+            $gameArguments.Add($value)
+        }
+    }
+    foreach ($pair in @(
+        @('--launchTarget', 'forgeclient'),
+        @('--fml.forgeVersion', '47.4.10'),
+        @('--fml.mcVersion', '1.20.1')
+    )) {
+        $index = [Array]::IndexOf([string[]]$gameArguments.ToArray(), $pair[0])
+        if ($index -lt 0 -or $index + 1 -ge $gameArguments.Count -or
+            $gameArguments[$index + 1] -cne $pair[1]) { return $false }
+    }
+
+    try {
+        $archive = [IO.Compression.ZipFile]::OpenRead($forgeJar)
+        try {
+            if ($archive.Entries.Count -eq 0) { return $false }
+            $firstFile = @($archive.Entries | Where-Object { $_.Length -gt 0 } | Select-Object -First 1)
+            if ($firstFile.Count -eq 0) { return $false }
+            $stream = $firstFile[0].Open()
+            try {
+                $buffer = New-Object byte[] 4
+                if ($stream.Read($buffer, 0, $buffer.Length) -eq 0) { return $false }
+            } finally { $stream.Dispose() }
+        } finally { $archive.Dispose() }
+    } catch { return $false }
+
+    $libraryRootFull = [IO.Path]::GetFullPath($librariesRoot).TrimEnd('\', '/') +
+        [IO.Path]::DirectorySeparatorChar
+    $hasForgeLoader = $false
+    foreach ($library in @($profile.libraries)) {
+        $allowed = $true
+        if ($null -ne $library.rules -and @($library.rules).Count -gt 0) {
+            $allowed = $false
+            foreach ($rule in @($library.rules)) {
+                if ($rule.action -notin @('allow', 'disallow')) { return $false }
+                if ($rule.features) { continue }
+                if ($rule.os) {
+                    if ($rule.os.name -and $rule.os.name -cne 'windows') { continue }
+                    if ($rule.os.arch -or $rule.os.version) { return $false }
+                }
+                $allowed = $rule.action -eq 'allow'
+            }
+        }
+        if (-not $allowed) { continue }
+        $artifact = if ($inherited) { $library.downloads.artifact } else { $library.artifact }
+        if ($artifact.path -isnot [string] -or
+            [string]::IsNullOrWhiteSpace($artifact.path) -or
+            $artifact.path -match '(^/|\\|:|(^|/)\.\.?(/|$))') {
+            throw "Unsafe Forge library path: $($library.name)"
+        }
+        $libraryPath = [IO.Path]::GetFullPath((Join-Path $librariesRoot $artifact.path.Replace('/', '\')))
+        if (-not $libraryPath.StartsWith($libraryRootFull, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Forge library escapes client directory: $($library.name)"
+        }
+        Assert-ForgeNoReparsePoint -Path $libraryPath
+        if ($artifact.sha1 -notmatch '^[0-9a-fA-F]{40}$' -or
+            $artifact.size -le 0 -or
+            -not (Test-ForgePinnedFile -Path $libraryPath -Size $artifact.size -Sha1 $artifact.sha1)) {
+            return $false
+        }
+        if ($library.name -ceq 'net.minecraftforge:fmlloader:1.20.1-47.4.10') {
+            $hasForgeLoader = $true
+        }
+    }
+    return $hasForgeLoader
+}

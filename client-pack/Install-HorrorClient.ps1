@@ -13,6 +13,11 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Net.Http
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+$forgeReadinessPath = Join-Path $PSScriptRoot 'Forge-ClientReadiness.ps1'
+if (-not (Test-Path -LiteralPath $forgeReadinessPath -PathType Leaf)) {
+    throw 'Forge-ClientReadiness.ps1 is missing beside this script.'
+}
+. $forgeReadinessPath
 $manifestPath = Join-Path $PSScriptRoot 'client-modpack.json'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw 'client-modpack.json is missing beside this script.'
@@ -370,103 +375,6 @@ function Get-ForgeModIds {
         }
         return @($ids.ToArray())
     } finally { $archive.Dispose() }
-}
-
-function Test-ForgeReady {
-    param([string]$ClientRoot, [string]$VersionId)
-    $versionFolder = Join-Path (Join-Path $ClientRoot 'versions') $VersionId
-    $profilePath = Join-Path $versionFolder "$VersionId.json"
-    $clientJar = Join-Path $versionFolder "$VersionId.jar"
-    $forgeJar = Join-Path $ClientRoot 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
-    $librariesRoot = Join-Path $ClientRoot 'libraries'
-    foreach ($path in @($profilePath, $clientJar, $forgeJar, $librariesRoot)) {
-        Assert-NoReparsePoint -Path $path
-    }
-    if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $clientJar -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $forgeJar -PathType Leaf)) {
-        return $false
-    }
-    try {
-        $profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json
-    } catch { return $false }
-    if ($profile.id -cne $VersionId -or
-        $profile.mainClass -cne 'cpw.mods.bootstraplauncher.BootstrapLauncher' -or
-        $profile.javaVersion.majorVersion -ne 17 -or
-        @($profile.libraries).Count -eq 0) {
-        return $false
-    }
-    $gameArguments = @($profile.arguments.game | ForEach-Object { $_.values })
-    foreach ($pair in @(@('--fml.forgeVersion', '47.4.10'), @('--fml.mcVersion', '1.20.1'))) {
-        $index = [Array]::IndexOf([object[]]$gameArguments, $pair[0])
-        if ($index -lt 0 -or $index + 1 -ge $gameArguments.Count -or
-            $gameArguments[$index + 1] -cne $pair[1]) {
-            return $false
-        }
-    }
-    $clientMetadata = $profile.downloads.client
-    if ($clientMetadata.sha1 -notmatch '^[0-9a-fA-F]{40}$' -or
-        $clientMetadata.size -le 0 -or
-        (Get-Item -LiteralPath $clientJar).Length -ne [long]$clientMetadata.size -or
-        -not (Test-MatchingHash -Path $clientJar -Algorithm 'SHA1' -Expected $clientMetadata.sha1)) {
-        return $false
-    }
-    try {
-        $archive = [IO.Compression.ZipFile]::OpenRead($forgeJar)
-        try {
-            if ($archive.Entries.Count -eq 0) { return $false }
-            $firstFile = @($archive.Entries | Where-Object { $_.Length -gt 0 } | Select-Object -First 1)
-            if ($firstFile.Count -eq 0) { return $false }
-            $stream = $firstFile[0].Open()
-            try {
-                $buffer = New-Object byte[] 4
-                if ($stream.Read($buffer, 0, $buffer.Length) -eq 0) { return $false }
-            } finally { $stream.Dispose() }
-        } finally { $archive.Dispose() }
-    } catch { return $false }
-
-    $libraryRootFull = [IO.Path]::GetFullPath($librariesRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
-    $hasForgeLoader = $false
-    foreach ($library in @($profile.libraries)) {
-        if ($library.name -ceq 'net.minecraftforge:fmlloader:1.20.1-47.4.10') {
-            $hasForgeLoader = $true
-        }
-        $allowed = $true
-        if ($null -ne $library.rules -and @($library.rules).Count -gt 0) {
-            $allowed = $false
-            foreach ($rule in @($library.rules)) {
-                if ($rule.action -notin @('allow', 'disallow')) { return $false }
-                if ($rule.features) { continue }
-                if ($rule.os) {
-                    if ($rule.os.name -and $rule.os.name -cne 'windows') { continue }
-                    # The pinned Forge profile has no architecture/version rules.
-                    # Do not mark an unrecognized conditional library as ready.
-                    if ($rule.os.arch -or $rule.os.version) { return $false }
-                }
-                $allowed = $rule.action -eq 'allow'
-            }
-        }
-        if (-not $allowed) { continue }
-        $artifact = $library.artifact
-        if ($artifact.path -isnot [string] -or
-            [string]::IsNullOrWhiteSpace($artifact.path) -or
-            $artifact.path -match '(^/|\\|:|(^|/)\.\.?(/|$))') {
-            throw "Unsafe Forge library path: $($library.name)"
-        }
-        $libraryPath = [IO.Path]::GetFullPath((Join-Path $librariesRoot $artifact.path.Replace('/', '\')))
-        if (-not $libraryPath.StartsWith($libraryRootFull, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Forge library escapes client directory: $($library.name)"
-        }
-        Assert-NoReparsePoint -Path $libraryPath
-        if ($artifact.sha1 -notmatch '^[0-9a-fA-F]{40}$' -or
-            $artifact.size -le 0 -or
-            -not (Test-Path -LiteralPath $libraryPath -PathType Leaf) -or
-            (Get-Item -LiteralPath $libraryPath).Length -ne [long]$artifact.size -or
-            -not (Test-MatchingHash -Path $libraryPath -Algorithm 'SHA1' -Expected $artifact.sha1)) {
-            return $false
-        }
-    }
-    return $hasForgeLoader
 }
 
 function Assert-CreatureModSet {
@@ -920,9 +828,11 @@ Move-Item -LiteralPath $receiptTemporary -Destination $receiptPath -Force
     throw "Client update failed and managed files were rolled back: $($originalError.Exception.Message)"
 }
 Write-Host ''
-Write-Host "Ready: $MinecraftDirectory"
-if ($forgeReady) { Write-Host "Forge installed: $forgeVersionId" }
+Write-Host "Client pack files installed: $MinecraftDirectory"
+if ($forgeReady) { Write-Host "Forge bootstrap files verified: $forgeVersionId" }
 Write-Host 'In TLauncher, choose this game directory and the Forge 1.20.1 / 47.4.10 version.'
+Write-Host 'On first launch, TLauncher may download vanilla version metadata and game assets.'
+Write-Host 'The installer has not verified a game launch or server connection.'
 Write-Host 'DynamicRenderDistance adjusts view distance in play; use F8 to set a maximum of 8 chunks.'
 Write-Host "Server address: $($manifest.server_address)"
 

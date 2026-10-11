@@ -24,11 +24,13 @@ function Write-Bytes {
 }
 
 function New-ForgeFixture {
-    param([string]$ClientRoot, [switch]$CorruptWindowsLibrary, [switch]$MissingMacLibrary)
+    param([string]$ClientRoot, [switch]$CorruptWindowsLibrary, [switch]$MissingMacLibrary,
+        [switch]$Inherited)
     $versionId = '1.20.1-forge-47.4.10'
     $versionFolder = Join-Path $ClientRoot "versions\$versionId"
     New-Item -ItemType Directory -Path $versionFolder -Force | Out-Null
-    $baseJar = Join-Path $versionFolder "$versionId.jar"
+    $baseJar = if ($Inherited) { Join-Path $ClientRoot 'versions\1.20.1\1.20.1.jar' }
+        else { Join-Path $versionFolder "$versionId.jar" }
     Write-Bytes -Path $baseJar -Bytes ([Text.Encoding]::ASCII.GetBytes('vanilla client fixture'))
     $baseSha1 = (Get-FileHash -LiteralPath $baseJar -Algorithm SHA1).Hash.ToLowerInvariant()
     $libraryPath = 'net/minecraftforge/fmlloader/1.20.1-47.4.10/fmlloader-1.20.1-47.4.10.jar'
@@ -49,21 +51,34 @@ function New-ForgeFixture {
     $profile = [ordered]@{
         id = $versionId
         mainClass = 'cpw.mods.bootstraplauncher.BootstrapLauncher'
-        javaVersion = [ordered]@{ majorVersion = 17 }
-        downloads = [ordered]@{ client = [ordered]@{
+    }
+    if ($Inherited) {
+        $profile.inheritsFrom = '1.20.1'
+        $profile.arguments = [ordered]@{ game = @('--launchTarget', 'forgeclient',
+            '--fml.forgeVersion', '47.4.10', '--fml.mcVersion', '1.20.1') }
+    } else {
+        $profile.javaVersion = [ordered]@{ majorVersion = 17 }
+        $profile.downloads = [ordered]@{ client = [ordered]@{
             sha1 = $baseSha1; size = (Get-Item -LiteralPath $baseJar).Length
         } }
-        arguments = [ordered]@{ game = @(
+        $profile.arguments = [ordered]@{ game = @(
+            [ordered]@{ values = @('--launchTarget', 'forgeclient') },
             [ordered]@{ values = @('--fml.forgeVersion', '47.4.10') },
             [ordered]@{ values = @('--fml.mcVersion', '1.20.1') }
         ) }
-        libraries = @(
-            [ordered]@{ name = 'net.minecraftforge:fmlloader:1.20.1-47.4.10'
-                artifact = [ordered]@{ path = $libraryPath; sha1 = $librarySha1; size = $librarySize } },
-            [ordered]@{ name = 'example:native-macos:1'
-                artifact = [ordered]@{ path = $macPath; sha1 = $macSha1; size = $macSize }
-                rules = @([ordered]@{ action = 'allow'; os = [ordered]@{ name = 'osx' } }) }
-        )
+    }
+    $profile.libraries = @(
+        [ordered]@{ name = 'net.minecraftforge:fmlloader:1.20.1-47.4.10'
+            artifact = [ordered]@{ path = $libraryPath; sha1 = $librarySha1; size = $librarySize } },
+        [ordered]@{ name = 'example:native-macos:1'
+            artifact = [ordered]@{ path = $macPath; sha1 = $macSha1; size = $macSize }
+            rules = @([ordered]@{ action = 'allow'; os = [ordered]@{ name = 'osx' } }) }
+    )
+    if ($Inherited) {
+        foreach ($library in $profile.libraries) {
+            $library.downloads = [ordered]@{ artifact = $library.artifact }
+            $library.Remove('artifact')
+        }
     }
     $profile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $versionFolder "$versionId.json") -Encoding UTF8
     $forgeJar = Join-Path $ClientRoot 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
@@ -80,6 +95,17 @@ try {
     $package = Join-Path $scratch 'package'
     New-Item -ItemType Directory -Path (Join-Path $package 'historical') -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $clientPack 'Install-HorrorClient.ps1') -Destination $package
+    # Replace only the Mojang JAR pin in this disposable fixture package.
+    # Production continues to require the official 23,028,853-byte JAR.
+    $fakeBase = [Text.Encoding]::ASCII.GetBytes('vanilla client fixture')
+    $fakeSha1 = ([BitConverter]::ToString(([Security.Cryptography.SHA1]::Create()).ComputeHash($fakeBase))).Replace('-', '').ToLowerInvariant()
+    $readiness = Get-Content -LiteralPath (Join-Path $clientPack 'Forge-ClientReadiness.ps1') -Raw -Encoding UTF8
+    Assert-True ($readiness.Contains('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838') -and
+        $readiness.Contains('23028853L')) 'Mojang fixture replacement anchors missing'
+    $readiness = $readiness.Replace('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838', $fakeSha1)
+    $readiness = $readiness.Replace('23028853L', "$($fakeBase.Length)L")
+    [IO.File]::WriteAllText((Join-Path $package 'Forge-ClientReadiness.ps1'), $readiness,
+        (New-Object Text.UTF8Encoding($false)))
     $fixtureBytes = [Text.Encoding]::ASCII.GetBytes('unchanged fixture mod')
     $fixtureSource = Join-Path $scratch 'fixture.jar'
     Write-Bytes -Path $fixtureSource -Bytes $fixtureBytes
@@ -96,15 +122,39 @@ try {
     [ordered]@{ pack = $packName; pack_version = '2026.10.11.4'; files = @() } |
         ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $package 'historical\client-modpack-2026.10.11.4.json') -Encoding UTF8
 
-    foreach ($case in @('valid', 'corrupt-windows', 'missing-macos')) {
+    foreach ($case in @('valid', 'inherited', 'corrupt-windows', 'missing-macos',
+            'tampered-base', 'inherited-tampered-base', 'wrong-java', 'unsafe-library')) {
         $client = Join-Path $scratch $case
         New-ForgeFixture -ClientRoot $client -CorruptWindowsLibrary:($case -eq 'corrupt-windows') `
-            -MissingMacLibrary:($case -eq 'missing-macos')
+            -MissingMacLibrary:($case -eq 'missing-macos') `
+            -Inherited:($case -in @('inherited', 'inherited-tampered-base'))
+        $profilePath = Join-Path $client 'versions\1.20.1-forge-47.4.10\1.20.1-forge-47.4.10.json'
+        if ($case -in @('tampered-base', 'inherited-tampered-base')) {
+            $baseJar = if ($case -eq 'inherited-tampered-base') {
+                Join-Path $client 'versions\1.20.1\1.20.1.jar'
+            } else { Join-Path $client 'versions\1.20.1-forge-47.4.10\1.20.1-forge-47.4.10.jar' }
+            Write-Bytes -Path $baseJar -Bytes ([Text.Encoding]::ASCII.GetBytes('Xanilla client fixture'))
+        }
+        if ($case -in @('wrong-java', 'unsafe-library')) {
+            $profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($case -eq 'wrong-java') { $profile.javaVersion.majorVersion = 21 }
+            else { $profile.libraries[0].artifact.path = '../outside.jar' }
+            $profile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $profilePath -Encoding UTF8
+        }
         Write-Bytes -Path (Join-Path $client 'mods\fixture.jar') -Bytes $fixtureBytes
+        if ($case -eq 'unsafe-library') {
+            $failure = $null
+            try { & (Join-Path $package 'Install-HorrorClient.ps1') -MinecraftDirectory $client -SkipForge | Out-Null }
+            catch { $failure = $_.Exception.Message }
+            Assert-True ($failure -match 'Unsafe Forge library path') 'unsafe Forge path was not rejected'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $client 'horror-apocalypse-install.json'))) `
+                'unsafe Forge path wrote an installation receipt'
+            continue
+        }
         & (Join-Path $package 'Install-HorrorClient.ps1') -MinecraftDirectory $client -SkipForge | Out-Null
         $receipt = Get-Content -LiteralPath (Join-Path $client 'horror-apocalypse-install.json') -Raw -Encoding UTF8 |
             ConvertFrom-Json
-        $expected = $case -ne 'corrupt-windows'
+        $expected = $case -notin @('corrupt-windows', 'tampered-base', 'inherited-tampered-base', 'wrong-java')
         Assert-True ($receipt.forge_installed -eq $expected) "$case Forge readiness was recorded incorrectly"
     }
     $receiptClient = Join-Path $scratch 'receipt-directory'

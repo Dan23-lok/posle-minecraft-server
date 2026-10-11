@@ -24,6 +24,11 @@ if ($manifest.minecraft_version -cne '1.20.1' -or $manifest.forge_version -cne '
     $manifest.server_address -cne 'cairo-worrisome.tun.ply.gg') {
     throw 'The client manifest is incompatible with this prototype.'
 }
+$forgeReadinessPath = Join-Path $PSScriptRoot 'Forge-ClientReadiness.ps1'
+if (-not (Test-Path -LiteralPath $forgeReadinessPath -PathType Leaf)) {
+    throw 'Forge-ClientReadiness.ps1 is missing beside this helper.'
+}
+. $forgeReadinessPath
 
 $MinecraftDirectory = [IO.Path]::GetFullPath($MinecraftDirectory)
 $receiptPath = Join-Path $MinecraftDirectory 'horror-apocalypse-install.json'
@@ -67,25 +72,8 @@ foreach ($item in $expectedFiles) {
 }
 
 $versionId = '1.20.1-forge-47.4.10'
-$versionJson = Join-Path $MinecraftDirectory "versions\$versionId\$versionId.json"
-$versionJar = Join-Path $MinecraftDirectory "versions\$versionId\$versionId.jar"
-$forgeJar = Join-Path $MinecraftDirectory 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
-foreach ($file in @($versionJson, $versionJar, $forgeJar)) {
-    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
-        throw "Forge 47.4.10 is incomplete: $file"
-    }
-}
-$profile = Get-Content -LiteralPath $versionJson -Raw -Encoding UTF8 | ConvertFrom-Json
-$gameArguments = @($profile.arguments.game | ForEach-Object { $_.values })
-$forgeIndex = [Array]::IndexOf([object[]]$gameArguments, '--fml.forgeVersion')
-$minecraftIndex = [Array]::IndexOf([object[]]$gameArguments, '--fml.mcVersion')
-if ($profile.id -cne $versionId -or $profile.javaVersion.majorVersion -ne 17 -or
-    $profile.mainClass -cne 'cpw.mods.bootstraplauncher.BootstrapLauncher' -or
-    $forgeIndex -lt 0 -or $forgeIndex + 1 -ge $gameArguments.Count -or
-    $gameArguments[$forgeIndex + 1] -cne '47.4.10' -or
-    $minecraftIndex -lt 0 -or $minecraftIndex + 1 -ge $gameArguments.Count -or
-    $gameArguments[$minecraftIndex + 1] -cne '1.20.1') {
-    throw 'Forge version metadata is not the expected Minecraft 1.20.1 profile.'
+if (-not (Test-ForgeReady -ClientRoot $MinecraftDirectory -VersionId $versionId)) {
+    throw 'Forge 47.4.10 bootstrap profile or pinned files are missing or changed.'
 }
 
 if (-not (Test-Path -LiteralPath $TLauncherPropertiesPath -PathType Leaf)) {
@@ -128,7 +116,7 @@ if (-not $tlauncher) {
     throw 'No signed TLauncher.exe was found in the candidate locations.'
 }
 
-Write-Host "Client pack verified: $($manifest.pack_version); Forge $versionId; $($expectedFiles.Count) managed files."
+Write-Host "Client pack verified: $($manifest.pack_version); Forge bootstrap $versionId; $($expectedFiles.Count) managed files."
 Write-Host "Server: $($manifest.server_address)"
 if ($DryRun) {
     Write-Host 'Dry run: TLauncher was not started and Windows protocol registration was not changed.'

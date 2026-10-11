@@ -169,6 +169,7 @@ try {
     New-Item -ItemType Directory -Path $scratchFull -Force | Out-Null
     $copiedInstaller = Join-Path $scratchFull 'Install-HorrorClient.ps1'
     Copy-Item -LiteralPath $installer -Destination $copiedInstaller
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\client-pack\Forge-ClientReadiness.ps1') -Destination $scratchFull
     $historicalDirectory = Join-Path $scratchFull 'historical'
     New-Item -ItemType Directory -Path $historicalDirectory -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\client-pack\historical\client-modpack-2026.10.11.4.json') `

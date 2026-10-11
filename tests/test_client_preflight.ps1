@@ -44,6 +44,7 @@ function New-CasePackage {
     $package = Join-Path $scratch ($Name + '-package')
     New-Item -ItemType Directory -Path (Join-Path $package 'historical') -Force | Out-Null
     Copy-Item -LiteralPath $installerFixture -Destination (Join-Path $package 'Install-HorrorClient.ps1')
+    Copy-Item -LiteralPath (Join-Path $repoClient 'Forge-ClientReadiness.ps1') -Destination $package
     [ordered]@{ pack=$packName; pack_version='fixture-v6'; minecraft_version='1.20.1';
         forge_version='47.4.10'; java_major=17; server_address='example.invalid';
         java_runtime=[ordered]@{ java_exe_sha256='1E1BE5FB92E33218323825B284C16377BDF10F7ED5CB4D30323F6B596EA45E5F' };

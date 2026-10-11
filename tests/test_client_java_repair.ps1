@@ -36,6 +36,7 @@ function New-ReadyForgeProfile {
             size = (Get-Item -LiteralPath $clientJar).Length
         } }
         arguments = [ordered]@{ game = @(
+            [ordered]@{ values = @('--launchTarget', 'forgeclient') },
             [ordered]@{ values = @('--fml.forgeVersion', '47.4.10') },
             [ordered]@{ values = @('--fml.mcVersion', '1.20.1') }
         ) }
@@ -121,6 +122,15 @@ function Get-VerifiedFile {
         $source.Substring($downloadFunction.Extent.EndOffset)
     $installer = Join-Path $package 'Install-HorrorClient.ps1'
     [IO.File]::WriteAllText($installer, $source, (New-Object Text.UTF8Encoding($false)))
+    $readiness = Get-Content -LiteralPath (Join-Path $clientPack 'Forge-ClientReadiness.ps1') -Raw -Encoding UTF8
+    $fixtureBase = [Text.Encoding]::ASCII.GetBytes('base Minecraft client')
+    $fixtureSha = ([BitConverter]::ToString(([Security.Cryptography.SHA1]::Create()).ComputeHash($fixtureBase))).Replace('-', '').ToLowerInvariant()
+    Assert-True ($readiness.Contains('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838') -and
+        $readiness.Contains('23028853L')) 'Mojang fixture replacement anchors missing'
+    $readiness = $readiness.Replace('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838', $fixtureSha)
+    $readiness = $readiness.Replace('23028853L', "$($fixtureBase.Length)L")
+    [IO.File]::WriteAllText((Join-Path $package 'Forge-ClientReadiness.ps1'), $readiness,
+        (New-Object Text.UTF8Encoding($false)))
     $env:POSLE_JAVA_REPAIR_ARCHIVE = $javaArchive
     $env:POSLE_FORGE_REPAIR_FIXTURE = $forgeFixture
 

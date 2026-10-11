@@ -18,6 +18,7 @@ CLIENT = ROOT / "client-pack"
 FILES = (
     "Install-Client.cmd",
     "Install-HorrorClient.ps1",
+    "Forge-ClientReadiness.ps1",
     "Uninstall-Client.cmd",
     "Uninstall-HorrorClient.ps1",
     "client-modpack.json",

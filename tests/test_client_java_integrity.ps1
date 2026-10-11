@@ -66,6 +66,7 @@ function Get-VerifiedFile {
         $source.Substring($downloadFunction.Extent.EndOffset)
     $installerCopy = Join-Path $package 'Install-HorrorClient.ps1'
     [IO.File]::WriteAllText($installerCopy, $source, (New-Object Text.UTF8Encoding($false)))
+    Copy-Item -LiteralPath (Join-Path $repoClient 'Forge-ClientReadiness.ps1') -Destination $package
 
     $fakeJava = Join-Path (Join-Path (Join-Path $client 'runtime') $manifest.java_runtime.directory) 'bin\java.exe'
     New-Item -ItemType Directory -Path (Split-Path -Parent $fakeJava) -Force | Out-Null

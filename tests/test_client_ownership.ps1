@@ -46,6 +46,7 @@ function Get-VerifiedFile {
     $copiedSource = $source.Substring(0, $offset) + $stub + $source.Substring($end)
     $installer = Join-Path $package 'Install-HorrorClient.ps1'
     [IO.File]::WriteAllText($installer, $copiedSource, (New-Object Text.UTF8Encoding($false)))
+    Copy-Item -LiteralPath (Join-Path $repoClient 'Forge-ClientReadiness.ps1') -Destination $package
     Copy-Item -LiteralPath (Join-Path $repoClient 'Uninstall-HorrorClient.ps1') -Destination $package
 
     $preexistingPath = Join-Path $client 'mods\preexisting.jar'
