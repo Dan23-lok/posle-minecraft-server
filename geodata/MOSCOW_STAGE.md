@@ -18,8 +18,16 @@ the public survival world. The pilot server is stopped. `D:\1-Game\world-v2`,
   half their sampled pixels; 22/149 overlap less than a quarter. Road
   connectivity is unproven.
 - One apartment at OSM way 217834048, Nakhimovsky Prospekt 63 building 2,
-  was entered in-game around X 4,180,899, Y 92, Z -7,494,804. It has
-  large mostly empty rooms. It has not been turned into a believable ruin.
+  was entered in-game around X 4,180,899, Y 92, Z -7,494,804. Its source
+  rooms were largely empty. An **isolated derivative copy** named
+  `earth-interior-pilot-20261011` now contains a minimally furnished room near
+  X 4,180,895, Y 91, Z -7,494,813, including a bed, basic workstations,
+  partial partitions and small decay details. The source world above and
+  public world were not modified. The copy is not a believable ruined block.
+  Minecraft F2 screenshots and a full local 770-block source/copy comparison
+  are in the task outputs and `room-pilot-audit.json`; 86 saved block changes
+  had zero failures in a *local, simple* support check. This proves nothing
+  about structural integrity elsewhere.
 - Generation reported `minecraft:banner` block entity warnings at
   X 4,181,159, Y 89, Z -7,494,657 and -7,494,655. A read-only Anvil
   check of the saved chunks found **air and no block entity at either
@@ -28,7 +36,7 @@ the public survival world. The pilot server is stopped. `D:\1-Game\world-v2`,
   Local evidence: `staging-earth-sector-20261011/banner-support-audit.json`
   and its read-only `audit_banner_support.py` in the same staging directory.
 - The staged world does **not** demonstrate developed Moscow or any American
-  city, furnished apartments, logical road network, airports, factories,
+  city, broadly furnished apartments, logical road network, airports, factories,
   railways, apocalypse damage, or a global Earth survival world.
 
 Primary sources: [Tellus 0.8.3 release](https://github.com/Yucareux/Tellus/releases/tag/v0.8.3),
