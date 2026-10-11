@@ -29,6 +29,10 @@ $selectedServerProjects = [ordered]@{
     'Born in Chaos' = 'born-in-chaos'
     'GeckoLib' = 'geckolib'
     "Spooki's Unique Mobs" = 'spookis-unique-mobs'
+    'Pehkui' = 'pehkui'
+}
+$creatureVersionPins = @{
+    'Pehkui' = @{ version = 'SQpqSgAE'; project = 't5W7Jfwy' }
 }
 
 $mods = New-Object System.Collections.ArrayList
@@ -39,6 +43,17 @@ foreach ($name in $selectedServerProjects.Keys) {
     if ($entry.client_side -ne 'required' -or -not $entry.official_url -or -not $entry.download_url -or
             $entry.sha512 -notmatch '^[0-9a-fA-F]{128}$') {
         throw "Server mod has incomplete client download data: $name"
+    }
+    if ($creatureVersionPins.ContainsKey($name)) {
+        $pin = $creatureVersionPins[$name]
+        $v = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/version/$($pin.version)" -Headers $headers
+        $file = @($v.files | Where-Object { $_.filename -ceq $entry.filename })
+        if ($v.project_id -cne $pin.project -or '1.20.1' -notin @($v.game_versions) -or
+                'forge' -notin @($v.loaders) -or $file.Count -ne 1 -or
+                $file[0].url -cne $entry.download_url -or
+                $file[0].hashes.sha512 -cne $entry.sha512) {
+            throw "Official Modrinth metadata differs from server pin: $name"
+        }
     }
     [void]$mods.Add([ordered]@{
         project = $selectedServerProjects[$name]
@@ -54,6 +69,8 @@ foreach ($name in $selectedServerProjects.Keys) {
 
 $modrinthVersions = [ordered]@{
     'powered-flashlight' = '1tpZnh9i'
+    'dynamic-flashlight' = 'dkQtiEhc'
+    'true-darkness-biomes' = '39nowrB1'
     'immersive-aircraft' = 'aDUlOdzA'
     'civilian-aviation' = 'ClkJoKdV'
     'not-enough-animations' = 'kGjMleOz'
@@ -74,7 +91,11 @@ foreach ($project in $modrinthVersions.Keys) {
     $file = @($files | Where-Object { $_.primary -eq $true })[0]
     if (-not $file) { $file = $files[0] }
     if (-not $file -or -not $file.hashes.sha512) { throw "Missing file/hash for $project" }
-    [void]$mods.Add([ordered]@{
+    if ($project -in @('dynamic-flashlight', 'true-darkness-biomes') -and
+        ('1.20.1' -notin @($v.game_versions) -or 'forge' -notin @($v.loaders))) {
+        throw "Not a Forge 1.20.1 asset: $project"
+    }
+    $modEntry = [ordered]@{
         project = $project
         version = $v.version_number
         filename = $file.filename
@@ -83,7 +104,9 @@ foreach ($project in $modrinthVersions.Keys) {
         hash = $file.hashes.sha512.ToLowerInvariant()
         folder = 'mods'
         source_page = "https://modrinth.com/mod/$project"
-    })
+    }
+    if ($project -eq 'true-darkness-biomes') { $modEntry.install_when = 'shaders_disabled' }
+    [void]$mods.Add($modEntry)
 }
 
 [void]$mods.Add([ordered]@{
@@ -157,11 +180,15 @@ foreach ($project in $visualVersions.Keys) {
 
 $manifest = [ordered]@{
     pack = ([char[]]@(0x041F, 0x041E, 0x0421, 0x041B, 0x0415) -join '')
-    pack_version = '2026.10.11.4'
+    pack_version = '2026.10.11.8'
     minecraft_version = '1.20.1'
     forge_version = '47.4.10'
     java_major = 17
     server_address = 'cairo-worrisome.tun.ply.gg'
+    local_animation_patch = [ordered]@{
+        kind = 'born-in-chaos-1.7.5'
+        revision = 1
+    }
     forge_installer = [ordered]@{
         url = 'https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.10-installer.jar'
         sha256 = '1912760b4cb6b803d8a826de603c9076b1da71ec2765e9a1f8c1ca78f65278e3'
@@ -170,6 +197,7 @@ $manifest = [ordered]@{
         url = 'https://corretto.aws/downloads/resources/17.0.20.12.1/amazon-corretto-17.0.20.12.1-windows-x64-jdk.zip'
         sha256 = '1ac8d9dc48b170684ac6223113f524325bd842d14ed74dac28927f8165cffd3a'
         directory = 'jdk17.0.20_12'
+        java_exe_sha256 = '1E1BE5FB92E33218323825B284C16377BDF10F7ED5CB4D30323F6B596EA45E5F'
     }
     files = @($mods)
 }

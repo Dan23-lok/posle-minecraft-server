@@ -1,0 +1,30 @@
+{
+  "geonames_input_sha256": "22885e4d2dbfa6b3d07372172337e47f105a14b40173862d8bf4a5ac4a7fdcc9",
+  "wup_input_sha256": "f1ac6bda7c8398d0decc87701a137adb6d07a1e2bf9b04b8649b7cc34b600671",
+  "output_sha256": "e6f6c0e798b6e2bf7daf3ac443c13100360ec48de3a35a83ab25b59f17d6d352",
+  "countries": 195,
+  "geonames_selected_settlement_rows": 4948489,
+  "wup_urban_centres_in_195": 12084,
+  "wup_zero_row_countries": [
+    "AD",
+    "AG",
+    "DM",
+    "FM",
+    "GD",
+    "VA",
+    "KI",
+    "LI",
+    "MH",
+    "NR",
+    "PW",
+    "WS",
+    "SM",
+    "SC",
+    "KN",
+    "LC",
+    "VC",
+    "TO",
+    "TV"
+  ],
+  "game_status": "not generated or verified by this data join"
+}

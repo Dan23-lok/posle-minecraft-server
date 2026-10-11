@@ -1,10 +1,14 @@
 ﻿{
     "pack":  "ПОСЛЕ",
-    "pack_version":  "2026.10.11.4",
+    "pack_version":  "2026.10.11.8",
     "minecraft_version":  "1.20.1",
     "forge_version":  "47.4.10",
     "java_major":  17,
     "server_address":  "cairo-worrisome.tun.ply.gg",
+    "local_animation_patch":  {
+                                  "kind":  "born-in-chaos-1.7.5",
+                                  "revision":  1
+                              },
     "forge_installer":  {
                             "url":  "https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.10-installer.jar",
                             "sha256":  "1912760b4cb6b803d8a826de603c9076b1da71ec2765e9a1f8c1ca78f65278e3"
@@ -12,7 +16,8 @@
     "java_runtime":  {
                          "url":  "https://corretto.aws/downloads/resources/17.0.20.12.1/amazon-corretto-17.0.20.12.1-windows-x64-jdk.zip",
                          "sha256":  "1ac8d9dc48b170684ac6223113f524325bd842d14ed74dac28927f8165cffd3a",
-                         "directory":  "jdk17.0.20_12"
+                         "directory":  "jdk17.0.20_12",
+                         "java_exe_sha256":  "1E1BE5FB92E33218323825B284C16377BDF10F7ED5CB4D30323F6B596EA45E5F"
                      },
     "files":  [
                   {
@@ -76,6 +81,16 @@
                       "source_page":  "https://modrinth.com/mod/spookis-unique-mobs"
                   },
                   {
+                      "project":  "pehkui",
+                      "version":  "3.8.2+1.20.1-forge",
+                      "filename":  "Pehkui-3.8.2+1.20.1-forge.jar",
+                      "url":  "https://cdn.modrinth.com/data/t5W7Jfwy/versions/SQpqSgAE/Pehkui-3.8.2%2B1.20.1-forge.jar",
+                      "hash_algorithm":  "SHA512",
+                      "hash":  "e4660f0b5af6bfe2902ab39a6fbfa911856e0567bffc47842b482731da373afa4424b9e7cf47c61a0c2107445520475053709a6671d9eb4b7f4b55597729af3f",
+                      "folder":  "mods",
+                      "source_page":  "https://modrinth.com/mod/pehkui/version/SQpqSgAE"
+                  },
+                  {
                       "project":  "powered-flashlight",
                       "version":  "1.0.0",
                       "filename":  "powered_flashlight-forge-1.20.1-1.0.0.jar",
@@ -84,6 +99,27 @@
                       "hash":  "c1b64ff882b1b2f4f555874fed496620ca4d67093fa6eb447046499f0d0edc80a413d55d98b6e131bf1bc54aad1fe789e7fdd87cae3c319b2b2e7276b7ee9edc",
                       "folder":  "mods",
                       "source_page":  "https://modrinth.com/mod/powered-flashlight"
+                  },
+                  {
+                      "project":  "dynamic-flashlight",
+                      "version":  "2.1.0-forge",
+                      "filename":  "flashlight-2.1.0-forge-1.20.1.jar",
+                      "url":  "https://cdn.modrinth.com/data/SemszBhn/versions/dkQtiEhc/flashlight-2.1.0-forge-1.20.1.jar",
+                      "hash_algorithm":  "SHA512",
+                      "hash":  "45e97d9f5263331a3cd3787b64bbfbf5e75fd591d30847e73b4816a921d66bb2acb03f9b1a4ccadd64289574fac0a434515c9fb36d701ea32ea191d828611530",
+                      "folder":  "mods",
+                      "source_page":  "https://modrinth.com/mod/dynamic-flashlight"
+                  },
+                  {
+                      "project":  "true-darkness-biomes",
+                      "version":  "1.0.2",
+                      "filename":  "darkness-1.20.1-1.0.2.jar",
+                      "url":  "https://cdn.modrinth.com/data/c44xmpkF/versions/39nowrB1/darkness-1.20.1-1.0.2.jar",
+                      "hash_algorithm":  "SHA512",
+                      "hash":  "2f5450a71287cb050a9c03987439b6c1b9460234becf94ebc567dba96fe887f384221e707ed5f7a50a746475e91222c384b6bc666808cb87c36c474470e54a4e",
+                      "folder":  "mods",
+                      "source_page":  "https://modrinth.com/mod/true-darkness-biomes",
+                      "install_when":  "shaders_disabled"
                   },
                   {
                       "project":  "immersive-aircraft",

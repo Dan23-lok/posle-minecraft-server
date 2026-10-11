@@ -1,0 +1,3 @@
+# Hash-pinned geographic catalogues must keep their canonical LF bytes on Windows.
+geodata/reference/*.csv text eol=lf
+geodata/reference/*.json text eol=lf

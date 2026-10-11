@@ -1,0 +1,100 @@
+{
+  "country_feature_count_export": {
+    "file": "populated_places_by_country_and_code.csv",
+    "rows": 1963,
+    "sha256": "8a4ff488410e1cf7254594b2ec2ffaeebf023b559ae74a957374f42f590971d3"
+  },
+  "counts": {
+    "admin1_rows": 3865,
+    "admin2_rows": 47642,
+    "alternate_name_source_rows": 19220278,
+    "blank_alternate_name_source_rows": 6,
+    "blank_feature_class_source_rows": 5002,
+    "blank_feature_code_source_rows": 94926,
+    "country_info_rows": 252,
+    "current_candidate_settlement_rows": 4978239,
+    "feature_code_rows": 685,
+    "geonames_source_rows": 13472324,
+    "orphan_alternate_name_rows": 0,
+    "populated_place_source_rows": 5231964,
+    "pplx_section_rows": 170779,
+    "russian_alias_rows": 749798
+  },
+  "created_at_utc": "2026-10-11T02:31:26.922601+00:00",
+  "database": {
+    "bytes": 4452544512,
+    "file": "geonames.sqlite",
+    "sha256": "6ad7b5ae34034dbe99a6fb1245f14d4b3fd358c8ab80aaa4feef2a328f52ca05"
+  },
+  "definition": "All GeoNames feature points and alternate-name records in the pinned full dump; P class is not a census of legal cities.",
+  "known_limits": [
+    "Point locations do not provide building footprints, shorelines or terrain meshes.",
+    "Administrative codes and alternate names may be missing or historical.",
+    "GeoNames P class includes neighborhoods, abandoned and historical settlements.",
+    "No Minecraft region is marked built or validated by this import."
+  ],
+  "lookup_import_rows": {
+    "admin1": 3865,
+    "admin2": 47642,
+    "country_info": 252,
+    "feature_codes": 685
+  },
+  "source_files": {
+    "admin1CodesASCII.txt": {
+      "bytes": 151583,
+      "http_etag": "\"2501f-65d72cdb3fbc2\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:58:39 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:23.181726+00:00",
+      "sha256": "1da92a6323a5fec3176f3f743bf4cf4040fd56a876da55e46fbca23c863aa60a",
+      "url": "https://download.geonames.org/export/dump/admin1CodesASCII.txt"
+    },
+    "admin2Codes.txt": {
+      "bytes": 2366368,
+      "http_etag": "\"241ba0-65d72cdb3fbc2\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:58:39 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:23.649880+00:00",
+      "sha256": "e1b500f4f0e13b3119ff15df84ce3c28982e899bb4183ee033f802a280c377d3",
+      "url": "https://download.geonames.org/export/dump/admin2Codes.txt"
+    },
+    "allCountries.zip": {
+      "bytes": 422010093,
+      "http_etag": "\"19275ced-65d72cdb3f7da\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:58:39 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:38.820047+00:00",
+      "sha256": "3b6ba297e83d5cd6717a41cfe72b6cd85d167b0d0ff06069b2c33d410d6abe15",
+      "url": "https://download.geonames.org/export/dump/allCountries.zip"
+    },
+    "alternateNamesV2.zip": {
+      "bytes": 204826020,
+      "http_etag": "\"c3565a4-65d72e01d607e\"",
+      "http_last_modified": "Sat, 10 Oct 2026 02:03:47 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:42.938250+00:00",
+      "sha256": "436a8231d14aaf4b27d1e5d69b88837eb2563fb7b14553d8845091cb642a4d65",
+      "url": "https://download.geonames.org/export/dump/alternateNamesV2.zip"
+    },
+    "countryInfo.txt": {
+      "bytes": 31680,
+      "http_etag": "\"7bc0-65d72e118db8f\"",
+      "http_last_modified": "Sat, 10 Oct 2026 02:04:04 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:23.859895+00:00",
+      "sha256": "c5997ea659df5bcf42509eb937064d172b2a998bb873608603e8421d714a9974",
+      "url": "https://download.geonames.org/export/dump/countryInfo.txt"
+    },
+    "featureCodes_en.txt": {
+      "bytes": 58642,
+      "http_etag": "\"e512-65d72ac483535\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:49:18 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:24.127056+00:00",
+      "sha256": "d44f129c1cffdeabf759c99fe7ea5b84f615c7f3e7366fb76ccf990f408f6af7",
+      "url": "https://download.geonames.org/export/dump/featureCodes_en.txt"
+    }
+  },
+  "source_manifest_sha256": "1681a4ed68c968c68c58d8bf687936f0be01e192f3550fb8109cea15c6b78367",
+  "source_provider": "GeoNames"
+}

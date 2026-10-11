@@ -4,32 +4,84 @@ param(
     [ValidateSet('Auto', 'Low', 'Balanced', 'Cinematic')]
     [string]$GraphicsProfile = 'Auto',
     [switch]$NoShader,
+    [switch]$AllowShaderUnderMemoryPressure,
     [switch]$NoResourcePack,
     [switch]$SkipForge,
+    [switch]$OfferWebsitePlay,
+    [ValidateSet('Ask', 'Enable', 'Skip')]
+    [string]$WebsitePlayDecision = 'Ask',
     [switch]$LaunchTLauncher
 )
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+if ($NoShader -and $AllowShaderUnderMemoryPressure) {
+    throw 'Choose either -NoShader or -AllowShaderUnderMemoryPressure, not both.'
+}
+Add-Type -AssemblyName System.Net.Http
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$forgeReadinessPath = Join-Path $PSScriptRoot 'Forge-ClientReadiness.ps1'
+if (-not (Test-Path -LiteralPath $forgeReadinessPath -PathType Leaf)) {
+    throw 'Forge-ClientReadiness.ps1 is missing beside this script.'
+}
+. $forgeReadinessPath
 $manifestPath = Join-Path $PSScriptRoot 'client-modpack.json'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw 'client-modpack.json is missing beside this script.'
 }
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($manifest.minecraft_version -ne '1.20.1' -or $manifest.forge_version -ne '47.4.10' -or $manifest.java_major -ne 17) {
     throw 'Unexpected Minecraft, Forge, or Java version in manifest.'
 }
+# SHA256 of bin/java.exe inside the pinned Corretto 17.0.20.12.1 archive.
+$pinnedJavaExeSha256 = '1E1BE5FB92E33218323825B284C16377BDF10F7ED5CB4D30323F6B596EA45E5F'
+if ($manifest.java_runtime.java_exe_sha256 -cne $pinnedJavaExeSha256) {
+    throw 'Unexpected portable Java executable hash pin in manifest.'
+}
 $MinecraftDirectory = [System.IO.Path]::GetFullPath($MinecraftDirectory)
-New-Item -ItemType Directory -Path $MinecraftDirectory -Force | Out-Null
 $receiptPath = Join-Path $MinecraftDirectory 'horror-apocalypse-install.json'
-$previousInstall = Test-Path -LiteralPath $receiptPath -PathType Leaf
-$previousReceipt = if ($previousInstall) {
-    try { Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json }
-    catch { throw "The previous installation receipt is invalid: $receiptPath" }
-} else { $null }
-$allowedHosts = @('cdn.modrinth.com', 'www.curseforge.com', 'mediafilez.forgecdn.net',
+$allowedHosts = @('cdn.modrinth.com', 'www.curseforge.com', 'edge.forgecdn.net', 'mediafilez.forgecdn.net',
     'maven.minecraftforge.net', 'corretto.aws')
 $allowedFolders = @('mods', 'shaderpacks', 'resourcepacks')
+$historicalPath = Join-Path $PSScriptRoot 'historical\client-modpack-2026.10.11.4.json'
+if (-not (Test-Path -LiteralPath $historicalPath -PathType Leaf)) {
+    throw 'The pinned historical client manifest is missing beside this script.'
+}
+$historicalManifest = Get-Content -LiteralPath $historicalPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($historicalManifest.pack -ne $manifest.pack -or
+    $historicalManifest.pack_version -ne '2026.10.11.4') {
+    throw 'The pinned historical client manifest has an unexpected identity.'
+}
+$animationPatchName = 'BornInChaosAnimationFix-local.zip'
+$animationPatchRevision = 1
+$graphicsPolicyRevision = 2
+$animationPatchEnabled = $null -ne $manifest.local_animation_patch
+if ($animationPatchEnabled -and ($manifest.local_animation_patch.kind -cne 'born-in-chaos-1.7.5' -or
+    $manifest.local_animation_patch.revision -ne $animationPatchRevision)) {
+    throw 'The local animation patch has an unexpected manifest identity.'
+}
+if ($manifest.pack_version -cin @('2026.10.11.7', '2026.10.11.8') -and -not $animationPatchEnabled) {
+    throw 'This pack requires the local animation correction.'
+}
+$knownBornHashes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+if ($animationPatchEnabled) {
+$bornEntries = @($manifest.files | Where-Object {
+    $_.project -eq 'born-in-chaos' -and $_.version -eq '1.7.5' -and
+        $_.folder -eq 'mods' -and $_.filename -eq 'born_in_chaos_[Forge]1.20.1_1.7.5.jar' -and
+        $_.hash_algorithm -eq 'SHA512'
+})
+if ($bornEntries.Count -ne 1) {
+    throw 'Expected exactly one pinned Born in Chaos 1.7.5 JAR for the animation correction.'
+}
+$bornEntry = $bornEntries[0]
+foreach ($knownManifest in @($manifest, $historicalManifest)) {
+    foreach ($knownBorn in @($knownManifest.files | Where-Object {
+        $_.project -eq 'born-in-chaos' -and $_.version -eq '1.7.5' -and
+            $_.folder -eq 'mods' -and $_.filename -eq $bornEntry.filename -and
+            $_.hash_algorithm -eq 'SHA512'
+    })) { $knownBornHashes.Add($knownBorn.hash) | Out-Null }
+}
+}
 
 function Test-ValidFileName {
     param([string]$Name)
@@ -46,11 +98,125 @@ function Test-MatchingHash {
     return $actual.Equals($Expected, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Get-AllowedDownloadUri {
+    param([Uri]$Uri, [string[]]$AllowedHosts)
+    if (-not $Uri.IsAbsoluteUri -or $Uri.Scheme -ne 'https' -or
+        $Uri.Host -notin $AllowedHosts -or $Uri.UserInfo -or -not $Uri.IsDefaultPort) {
+        throw "Untrusted download URL: $Uri"
+    }
+    return $Uri
+}
+
+function Assert-NoReparsePoint {
+    param([string]$Path)
+    $current = [IO.Path]::GetFullPath($Path)
+    while ($current) {
+        if (Test-Path -LiteralPath $current) {
+            $item = Get-Item -LiteralPath $current -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Refusing to use a symlink or junction: $current"
+            }
+        }
+        $parent = [IO.Path]::GetDirectoryName($current.TrimEnd('\', '/'))
+        if (-not $parent -or $parent -eq $current) { break }
+        $current = $parent
+    }
+}
+
+Assert-NoReparsePoint -Path $MinecraftDirectory
+Assert-NoReparsePoint -Path $receiptPath
+if (Test-Path -LiteralPath $receiptPath -PathType Container) {
+    throw "The installation receipt path is a directory: $receiptPath"
+}
+$previousInstall = Test-Path -LiteralPath $receiptPath -PathType Leaf
+$previousReceipt = if ($previousInstall) {
+    try { Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json }
+    catch { throw "The previous installation receipt is invalid: $receiptPath" }
+} else { $null }
+
+function Save-AllowedDownload {
+    param([string]$Url, [string]$Destination, [string[]]$AllowedHosts,
+        [System.Net.Http.HttpClient]$Client, [long]$MaxBytes = 128MB,
+        [TimeSpan]$BodyTimeout = [TimeSpan]::FromMinutes(15))
+    if ($MaxBytes -le 0 -or $BodyTimeout -le [TimeSpan]::Zero) {
+        throw 'Invalid download size or body timeout.'
+    }
+    # Automatic redirects can leave the approved host. Inspect every hop,
+    # including relative Location headers, before sending the next request.
+    $ownsClient = $null -eq $Client
+    if ($ownsClient) {
+        $handler = [System.Net.Http.HttpClientHandler]::new()
+        $handler.AllowAutoRedirect = $false
+        $Client = [System.Net.Http.HttpClient]::new($handler)
+        $Client.Timeout = [TimeSpan]::FromMinutes(15)
+    }
+    try {
+        $current = Get-AllowedDownloadUri -Uri ([Uri]$Url) -AllowedHosts $AllowedHosts
+        for ($hop = 0; $hop -le 8; $hop++) {
+            $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Get, $current)
+            $response = $null
+            try {
+                $response = $Client.SendAsync($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+                $status = [int]$response.StatusCode
+                if ($status -ge 300 -and $status -lt 400) {
+                    if ($hop -eq 8 -or -not $response.Headers.Location) {
+                        throw 'Download has too many redirects or a redirect without Location.'
+                    }
+                    $next = [Uri]::new($current, $response.Headers.Location)
+                    $current = Get-AllowedDownloadUri -Uri $next -AllowedHosts $AllowedHosts
+                    continue
+                }
+                $response.EnsureSuccessStatusCode() | Out-Null
+                if ($null -ne $response.Content.Headers.ContentLength -and
+                    $response.Content.Headers.ContentLength -gt $MaxBytes) {
+                    throw 'Download exceeds the size limit.'
+                }
+                $source = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+                try {
+                    $target = [System.IO.File]::Open($Destination, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
+                    try {
+                        $buffer = New-Object byte[] 65536
+                        $readTimeout = [Threading.Tasks.Task]::Delay($BodyTimeout)
+                        $cancellation = New-Object Threading.CancellationTokenSource
+                        try {
+                            $total = [long]0
+                            while ($true) {
+                                $read = $source.ReadAsync($buffer, 0, $buffer.Length, $cancellation.Token)
+                                $pending = [Threading.Tasks.Task[]]@($read, $readTimeout)
+                                $completed = [Threading.Tasks.Task]::WhenAny($pending).GetAwaiter().GetResult()
+                                if (-not [object]::ReferenceEquals($completed, $read)) {
+                                    $cancellation.Cancel()
+                                    throw 'Download body timeout.'
+                                }
+                                $count = $read.GetAwaiter().GetResult()
+                                if ($count -eq 0) { break }
+                                $total += $count
+                                if ($total -gt $MaxBytes) { throw 'Download exceeds the size limit.' }
+                                $target.Write($buffer, 0, $count)
+                            }
+                        } finally { $cancellation.Dispose() }
+                    } finally { $target.Dispose() }
+                } finally { $source.Dispose() }
+                return
+            } finally {
+                if ($response) { $response.Dispose() }
+                $request.Dispose()
+            }
+        }
+        throw 'Download exceeded the redirect limit.'
+    } finally {
+        if ($ownsClient) {
+            $Client.Dispose()
+            $handler.Dispose()
+        }
+    }
+}
+
 function Get-VerifiedFile {
-    param([string]$Url, [string]$Destination, [string]$Algorithm, [string]$Expected)
+    param([string]$Url, [string]$Destination, [string]$Algorithm, [string]$Expected,
+        [long]$MaxBytes = 128MB)
     if ($Algorithm -notin @('SHA256', 'SHA512')) { throw "Invalid hash algorithm: $Algorithm" }
-    $uri = [Uri]$Url
-    if ($uri.Scheme -ne 'https' -or $uri.Host -notin $allowedHosts) { throw "Unexpected download host: $Url" }
+    Get-AllowedDownloadUri -Uri ([Uri]$Url) -AllowedHosts $allowedHosts | Out-Null
     if (Test-MatchingHash -Path $Destination -Algorithm $Algorithm -Expected $Expected) {
         Write-Host "OK  $(Split-Path -Leaf $Destination)"
         return
@@ -65,7 +231,7 @@ function Get-VerifiedFile {
     try {
         for ($attempt = 1; $attempt -le 3; $attempt++) {
             try {
-                Invoke-WebRequest -Uri $Url -OutFile $temporary -MaximumRedirection 8 -UseBasicParsing
+                Save-AllowedDownload -Url $Url -Destination $temporary -AllowedHosts $allowedHosts -MaxBytes $MaxBytes
                 break
             } catch {
                 if ($attempt -eq 3) { throw }
@@ -81,34 +247,140 @@ function Get-VerifiedFile {
     }
 }
 
-function Get-AutoGraphicsProfile {
+function Get-ClientHardware {
     try {
         $system = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
-        $ramGb = [double]$system.TotalPhysicalMemory / 1GB
-        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop |
-            Where-Object { $_.Name -notmatch 'Microsoft Basic|Remote Display|Virtual Display' })
-        $gpuNames = (($gpus | ForEach-Object { $_.Name }) -join ' ')
-        $discreteGpu = $gpuNames -match 'GeForce|Radeon RX|Intel Arc|NVIDIA RTX'
-        $olderGpu = $gpuNames -match 'GeForce GTX ([6-9][0-9]{2}|10[0-5]0|16[0-5]0)' -or
-            $gpuNames -match 'Radeon RX [4-5][0-9]{2}|Intel Arc A3[0-9]{2}'
-        if ($ramGb -lt 12 -or -not $discreteGpu -or $olderGpu) {
-            return 'Low'
+        $processors = @(Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop)
+        $cores = ($processors | Measure-Object -Property NumberOfCores -Sum).Sum
+        if (-not $system.TotalPhysicalMemory -or -not $cores) {
+            throw 'Missing RAM or CPU core count'
         }
-        $strongGpu = $gpuNames -match 'GeForce RTX (30[7-9]0|40[7-9]0|50[7-9]0|60[7-9]0)' -or
-            $gpuNames -match 'Radeon RX (67|68|69|77|78|79|87|88|89)[0-9]{2}'
-        if ($ramGb -ge 24 -and $strongGpu) {
-            return 'Cinematic'
+        # Optional WMI queries can fail on restricted systems. Preserve the
+        # known CPU/RAM data and select Low when the GPU is unidentified.
+        try { $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop) }
+        catch { $gpus = @() }
+        $displayPixels = [long]0
+        $activeGpus = New-Object 'System.Collections.Generic.List[object]'
+        foreach ($gpu in $gpus) {
+            $width = [long]$gpu.CurrentHorizontalResolution
+            $height = [long]$gpu.CurrentVerticalResolution
+            if ($width -gt 0 -and $height -gt 0) {
+                $displayPixels = [Math]::Max($displayPixels, ($width * $height))
+                $activeGpus.Add($gpu)
+            }
+        }
+        # WMI cannot identify the GPU Minecraft will actually render on.
+        # Multiple active adapters or no active adapter are ambiguous, so do
+        # not infer shader support from an inactive discrete adapter.
+        $gpuUncertain = $activeGpus.Count -ne 1 -or
+            [string]::IsNullOrWhiteSpace([string]$activeGpus[0].Name)
+        $availableRamGb = -1.0
+        try {
+            $operatingSystem = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+            if ($null -ne $operatingSystem.FreePhysicalMemory) {
+                $availableRamGb = [double]$operatingSystem.FreePhysicalMemory / 1MB
+            }
+        } catch { }
+        return [pscustomobject]@{
+            RamGb = [double]$system.TotalPhysicalMemory / 1GB
+            CpuCores = [int]$cores
+            GpuNames = (($activeGpus | ForEach-Object { $_.Name }) -join ' ')
+            GpuSelectionUncertain = [bool]$gpuUncertain
+            AvailableRamGb = $availableRamGb
+            DisplayPixels = $displayPixels
         }
     } catch {
-        Write-Warning 'Hardware detection was unavailable; using low settings.'
+        Write-Warning 'Hardware detection was unavailable; using a conservative graphics plan.'
+        return $null
+    }
+}
+
+function Get-AutoGraphicsProfile {
+    param($Hardware)
+    if (-not $Hardware) { return 'Low' }
+    $ramGb = [double]$Hardware.RamGb
+    $cpuCores = [int]$Hardware.CpuCores
+    $gpuNames = [string]$Hardware.GpuNames
+    if ($Hardware.PSObject.Properties['GpuSelectionUncertain'] -and
+        $Hardware.GpuSelectionUncertain) { return 'Low' }
+    $availableRamGb = if ($Hardware.PSObject.Properties['AvailableRamGb']) {
+        [double]$Hardware.AvailableRamGb
+    } else { -1.0 }
+    $displayPixels = if ($Hardware.PSObject.Properties['DisplayPixels']) {
+        [long]$Hardware.DisplayPixels
+    } else { [long]0 }
+    $discreteGpu = $gpuNames -match 'GeForce|Radeon RX|Intel Arc|NVIDIA RTX'
+    $olderGpu = $gpuNames -match 'GeForce GTX ([6-9][0-9]{2}|10[0-5]0|16[0-5]0)\b' -or
+        $gpuNames -match 'Radeon RX [4-5][0-9]{2}\b|Intel Arc A3[0-9]{2}\b'
+    if ($ramGb -lt 12 -or $cpuCores -lt 4 -or -not $discreteGpu -or $olderGpu -or
+        ($availableRamGb -ge 0 -and $availableRamGb -lt 4)) {
         return 'Low'
+    }
+    $strongGpu = $gpuNames -match 'GeForce RTX (30[7-9]0|40[7-9]0|50[7-9]0|60[7-9]0)\b' -or
+        $gpuNames -match 'Radeon RX (67|68|69|77|78|79|87|88|89)[0-9]{2}\b'
+    # At 4K start one tier lower; the player can choose a higher profile.
+    if ($displayPixels -ge 7000000 -and -not $strongGpu) { return 'Low' }
+    if ($ramGb -ge 24 -and $cpuCores -ge 6 -and $strongGpu -and
+        $displayPixels -lt 7000000) {
+        return 'Cinematic'
     }
     return 'Balanced'
 }
 
+function Resolve-GraphicsProfile {
+    param(
+        [ValidateSet('Auto', 'Low', 'Balanced', 'Cinematic')][string]$RequestedProfile,
+        $PreviousReceipt,
+        $Hardware,
+        [switch]$ExplicitChoice
+    )
+    if ($RequestedProfile -ne 'Auto') { return $RequestedProfile }
+    if (-not $ExplicitChoice.IsPresent -and $PreviousReceipt -and
+        $PreviousReceipt.graphics_profile -in @('Low', 'Balanced', 'Cinematic')) {
+        return $PreviousReceipt.graphics_profile
+    }
+    return Get-AutoGraphicsProfile -Hardware $Hardware
+}
+
+function Get-GraphicsPlan {
+    param(
+        [ValidateSet('Low', 'Balanced', 'Cinematic')][string]$Profile,
+        $Hardware,
+        [switch]$NoShader,
+        [switch]$AllowShaderUnderMemoryPressure
+    )
+    $gpuNames = if ($Hardware) { [string]$Hardware.GpuNames } else { '' }
+    $gpuCertain = -not ($Hardware -and $Hardware.PSObject.Properties['GpuSelectionUncertain'] -and
+        $Hardware.GpuSelectionUncertain)
+    # The bundled DMS shader is listed as a low-end shader by its author, but
+    # adapter names cannot prove OpenGL compatibility or actual frame rate.
+    $shaderGpu = $gpuNames -match 'GeForce GTX (9[0-9]{2}|10[0-9]{2}|16[0-9]{2})\b|GeForce RTX|NVIDIA RTX|Radeon RX [5-9][0-9]{3}\b|Intel Arc'
+    $availableRamGb = if ($Hardware -and $Hardware.PSObject.Properties['AvailableRamGb']) {
+        [double]$Hardware.AvailableRamGb
+    } else { -1.0 }
+    $enableShader = (-not $NoShader.IsPresent) -and $Hardware -and
+        ([double]$Hardware.RamGb -ge 12) -and ([int]$Hardware.CpuCores -ge 4) -and
+        ($availableRamGb -lt 0 -or $availableRamGb -ge 4 -or
+            $AllowShaderUnderMemoryPressure.IsPresent) -and $gpuCertain -and $shaderGpu
+    $video = switch ($Profile) {
+        'Low' { [ordered]@{ renderDistance='6'; simulationDistance='5'; graphicsMode='0'; particles='2'; entityShadows='false'; entityDistanceScaling='0.5'; mipmapLevels='2'; maxFps='60'; gamma='0.0' } }
+        'Balanced' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='1'; entityShadows='false'; entityDistanceScaling='0.75'; mipmapLevels='4'; maxFps='90'; gamma='0.0' } }
+        'Cinematic' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='0'; entityShadows='true'; entityDistanceScaling='1.0'; mipmapLevels='4'; maxFps='120'; gamma='0.0' } }
+    }
+    $shadowDistance = switch ($Profile) { 'Low' { '4' } 'Balanced' { '6' } 'Cinematic' { '8' } }
+    return [pscustomobject]@{
+        VideoSettings = $video
+        OculusSettings = [ordered]@{
+            shaderPack = 'DMS 1.0.3.zip'
+            enableShaders = ([bool]$enableShader).ToString().ToLowerInvariant()
+            maxShadowRenderDistance = $shadowDistance
+        }
+    }
+}
+
 function Update-KeyValueFile {
     param([string]$Path, [string]$Separator, [System.Collections.IDictionary]$Values)
-    $existing = if (Test-Path -LiteralPath $Path -PathType Leaf) { @(Get-Content -LiteralPath $Path) } else { @() }
+    $existing = if (Test-Path -LiteralPath $Path -PathType Leaf) { @(Get-Content -LiteralPath $Path -Encoding UTF8) } else { @() }
     if ($existing.Count -gt 0) {
         $backup = "$Path.horror-backup"
         if (-not (Test-Path -LiteralPath $backup)) { Copy-Item -LiteralPath $Path -Destination $backup }
@@ -118,7 +390,7 @@ function Update-KeyValueFile {
     foreach ($line in $existing) {
         $position = $line.IndexOf($Separator)
         if ($position -gt 0) {
-            $key = $line.Substring(0, $position)
+            $key = $line.Substring(0, $position).Trim()
             if ($Values.Contains($key)) {
                 if (-not $written.ContainsKey($key)) { $result.Add("$key$Separator$($Values[$key])") }
                 $written[$key] = $true
@@ -134,11 +406,63 @@ function Update-KeyValueFile {
     [System.IO.File]::WriteAllLines($Path, $result.ToArray(), (New-Object System.Text.UTF8Encoding($false)))
 }
 
+function Resolve-EffectiveShaderState {
+    param([string]$OculusPath, [switch]$ApplyPlannedSetting, [string]$PlannedValue,
+        [string]$ShaderPackDirectory, [string[]]$ManagedShaderNames)
+    if ($ApplyPlannedSetting) {
+        if ($PlannedValue -cnotin @('true', 'false')) { throw 'Invalid planned Oculus shader state.' }
+        return ($PlannedValue -ceq 'true')
+    }
+    if (-not (Test-Path -LiteralPath $OculusPath -PathType Leaf)) {
+        throw 'Existing Oculus settings are missing. Rerun with -GraphicsProfile Auto to choose a new graphics plan.'
+    }
+    $settings = @(Get-Content -LiteralPath $OculusPath -Encoding UTF8 |
+        Where-Object { $_ -match '^\s*enableShaders\s*=' })
+    if ($settings.Count -ne 1) {
+        throw 'Existing Oculus settings have no unique enableShaders value. Repair the setting or rerun with -GraphicsProfile Auto.'
+    }
+    $value = ($settings[0] -split '=', 2)[1].Trim()
+    if ($value -cnotin @('true', 'false')) {
+        throw 'Existing Oculus enableShaders value is invalid. Repair it or rerun with -GraphicsProfile Auto.'
+    }
+    $enabled = $value -ceq 'true'
+    if ($enabled) {
+        $packLines = @(Get-Content -LiteralPath $OculusPath -Encoding UTF8 |
+            Where-Object { $_ -match '^\s*shaderPack\s*=' })
+        if ($packLines.Count -ne 1) {
+            throw 'Enabled Oculus shaders require one selected shader pack. Set shaderPack or rerun with -GraphicsProfile Auto.'
+        }
+        $packName = ($packLines[0] -split '=', 2)[1].Trim()
+        if (-not (Test-ValidFileName -Name $packName) -or $packName -notmatch '\.zip$') {
+            throw 'Enabled Oculus shaders require a valid selected shader pack ZIP.'
+        }
+        $packPath = Join-Path $ShaderPackDirectory $packName
+        Assert-NoReparsePoint -Path $packPath
+        if ($packName -notin $ManagedShaderNames -and
+            -not (Test-Path -LiteralPath $packPath -PathType Leaf)) {
+            throw 'The selected custom shader pack is missing. Install it or rerun with -GraphicsProfile Auto.'
+        }
+    }
+    return $enabled
+}
+
+function Test-SelectedClientFile {
+    param($Entry, [switch]$ShadersEnabled, [switch]$NoShader, [switch]$NoResourcePack)
+    $condition = [string]$Entry.install_when
+    if ($condition -and $condition -cne 'shaders_disabled') {
+        throw "Unknown client file condition: $condition"
+    }
+    if ($NoShader -and $Entry.folder -eq 'shaderpacks') { return $false }
+    if ($NoResourcePack -and $Entry.folder -eq 'resourcepacks') { return $false }
+    if ($condition -ceq 'shaders_disabled' -and $ShadersEnabled) { return $false }
+    return $true
+}
+
 function Update-ResourcePackSelection {
     param([string]$Path, [string[]]$RemoveIds, [string[]]$AddIds)
     $existingLine = @()
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
-        $existingLine = @(Get-Content -LiteralPath $Path | Where-Object { $_ -like 'resourcePacks:*' } | Select-Object -First 1)
+        $existingLine = @(Get-Content -LiteralPath $Path -Encoding UTF8 | Where-Object { $_ -like 'resourcePacks:*' } | Select-Object -First 1)
     }
     $selected = New-Object 'System.Collections.Generic.List[string]'
     if ($existingLine.Count -eq 0) {
@@ -161,118 +485,513 @@ function Update-ResourcePackSelection {
     Update-KeyValueFile -Path $Path -Separator ':' -Values ([ordered]@{ resourcePacks = $value })
 }
 
-$resolvedProfile = if ($GraphicsProfile -eq 'Auto') {
-    if ($previousReceipt -and $previousReceipt.graphics_profile -in @('Low', 'Balanced', 'Cinematic')) {
-        $previousReceipt.graphics_profile
-    } else {
-        Get-AutoGraphicsProfile
+function Get-ForgeModIds {
+    param([string]$Path)
+    $archive = [IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $metadata = $archive.GetEntry('META-INF/mods.toml')
+        if (-not $metadata) { return @() }
+        if ($metadata.Length -gt 1MB) { throw "Mod metadata is too large: $Path" }
+        $reader = New-Object IO.StreamReader($metadata.Open())
+        try { $lines = $reader.ReadToEnd() -split "`r?`n" }
+        finally { $reader.Dispose() }
+        $inModSection = $false
+        $ids = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($line in $lines) {
+            if ($line -match '^\s*\[\[\s*mods\s*\]\]') {
+                $inModSection = $true
+                continue
+            }
+            if ($line -match '^\s*\[\[') {
+                $inModSection = $false
+                continue
+            }
+            if ($inModSection -and $line -match '^\s*modId\s*=\s*(["''])([^"'']+)\1') {
+                $ids.Add($Matches[2])
+            }
+        }
+        return @($ids.ToArray())
+    } finally { $archive.Dispose() }
+}
+
+function Assert-CreatureModSet {
+    param([object[]]$Candidates, [object[]]$ObsoleteFiles, [string]$ClientRoot)
+    $projectIds = [ordered]@{
+        pehkui = 'pehkui'
+        'mutant-monsters' = 'mutantmonsters'
+        'puzzles-lib' = 'puzzleslib'
     }
-} else { $GraphicsProfile }
+    $creatureEntries = @($Candidates | Where-Object { $_.Entry.project -in @($projectIds.Keys) })
+    if ($creatureEntries.Count -eq 0) { return }
+    foreach ($project in $projectIds.Keys) {
+        $matches = @($creatureEntries | Where-Object { $_.Entry.project -ceq $project })
+        if ($matches.Count -gt 0 -and ($matches.Count -ne 1 -or $matches[0].Entry.folder -ne 'mods')) {
+            throw "Creature pack has an invalid client mod entry: $project"
+        }
+    }
+    if (@($creatureEntries | Where-Object { $_.Entry.project -ceq 'mutant-monsters' }).Count -gt 0) {
+        foreach ($dependency in @('pehkui', 'puzzles-lib')) {
+            if (@($creatureEntries | Where-Object { $_.Entry.project -ceq $dependency }).Count -ne 1) {
+                throw "Mutant Monsters needs exactly one client mod: $dependency"
+            }
+        }
+    }
+    $plannedPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $retiredPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $newIds = @{}
+    foreach ($old in $ObsoleteFiles) { $retiredPaths.Add($old.Path) | Out-Null }
+    foreach ($candidate in $Candidates) {
+        $plannedPaths.Add($candidate.Destination) | Out-Null
+        if ($candidate.Entry.folder -ne 'mods') { continue }
+        try { $ids = @(Get-ForgeModIds -Path $candidate.Source) }
+        catch { throw "Cannot inspect Forge metadata in $($candidate.Entry.filename): $($_.Exception.Message)" }
+        if ($projectIds.Contains($candidate.Entry.project) -and
+            $projectIds[$candidate.Entry.project] -notin $ids) {
+            throw "Wrong Forge modId in $($candidate.Entry.filename): expected $($projectIds[$candidate.Entry.project])"
+        }
+        foreach ($id in $ids) {
+            if ($newIds.ContainsKey($id)) { throw "Duplicate modId in client manifest: $id" }
+            $newIds[$id] = $candidate.Entry.filename
+        }
+    }
+    $modsDirectory = Join-Path $ClientRoot 'mods'
+    if (-not (Test-Path -LiteralPath $modsDirectory -PathType Container)) { return }
+    Assert-NoReparsePoint -Path $modsDirectory
+    foreach ($existing in @(Get-ChildItem -LiteralPath $modsDirectory -Filter '*.jar' -File)) {
+        if ($plannedPaths.Contains($existing.FullName) -or $retiredPaths.Contains($existing.FullName)) { continue }
+        Assert-NoReparsePoint -Path $existing.FullName
+        try { $ids = @(Get-ForgeModIds -Path $existing.FullName) }
+        catch { throw "Cannot inspect existing mod JAR $($existing.Name): $($_.Exception.Message)" }
+        foreach ($id in $ids) {
+            if ($newIds.ContainsKey($id)) {
+                throw "Existing JAR $($existing.Name) conflicts with $($newIds[$id]) (modId $id). Move the older JAR out manually."
+            }
+        }
+    }
+}
+
+# Current and previously published manifests are the only file identities the
+# installer may claim in a receipt or remove during an update.
+$knownFiles = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($knownManifest in @($manifest, $historicalManifest)) {
+    foreach ($known in @($knownManifest.files)) {
+        if ($known.folder -notin $allowedFolders -or
+            -not (Test-ValidFileName -Name $known.filename) -or
+            $known.hash_algorithm -notin @('SHA256', 'SHA512') -or
+            $known.hash -notmatch '^[0-9A-Fa-f]+$') {
+            throw 'A pinned client manifest contains an unsafe file entry.'
+        }
+        $expectedLength = if ($known.hash_algorithm -eq 'SHA256') { 64 } else { 128 }
+        if ($known.hash.Length -ne $expectedLength) {
+            throw 'A pinned client manifest contains an invalid hash.'
+        }
+        $knownFiles.Add("$($known.folder)`0$($known.filename)`0$($known.hash_algorithm)`0$($known.hash)") | Out-Null
+    }
+}
+$previousOwnership = @{}
+$previousGeneratedPatch = $null
+if ($previousReceipt) {
+    if ($previousReceipt.pack -ne $manifest.pack -or
+        $previousReceipt.minecraft_directory -isnot [string] -or
+        -not [IO.Path]::IsPathRooted($previousReceipt.minecraft_directory) -or
+        -not [IO.Path]::GetFullPath($previousReceipt.minecraft_directory).Equals(
+            $MinecraftDirectory, [StringComparison]::OrdinalIgnoreCase) -or
+        $null -eq $previousReceipt.managed_files) {
+        throw 'The previous installation receipt has an unexpected identity.'
+    }
+    foreach ($old in @($previousReceipt.managed_files)) {
+        if ($old.folder -notin $allowedFolders -or
+            -not (Test-ValidFileName -Name $old.filename) -or
+            $old.hash_algorithm -notin @('SHA256', 'SHA512') -or
+            $old.hash -notmatch '^[0-9A-Fa-f]+$') {
+            throw 'The previous installation receipt contains an unsafe file entry.'
+        }
+        $key = "$($old.folder)`0$($old.filename)`0$($old.hash_algorithm)`0$($old.hash)"
+        if ($animationPatchEnabled -and $old.folder -eq 'resourcepacks' -and $old.filename -eq $animationPatchName) {
+            if ($null -ne $previousGeneratedPatch -or $old.hash_algorithm -cne 'SHA256' -or
+                $old.hash.Length -ne 64 -or $old.generated_locally -cne $true -or
+                $old.created_by_posle -cne $true -or
+                $previousReceipt.animation_patch_revision -ne $animationPatchRevision -or
+                -not $knownBornHashes.Contains([string]$previousReceipt.animation_patch_source_sha512)) {
+                throw 'The previous generated animation patch has an invalid identity.'
+            }
+            $previousGeneratedPatch = $old
+            continue
+        }
+        if (-not $knownFiles.Contains($key) -or $previousOwnership.ContainsKey($key)) {
+            throw 'The previous installation receipt has an unknown or duplicate file identity.'
+        }
+        $ownershipProperty = $old.PSObject.Properties['created_by_posle']
+        if ($null -ne $ownershipProperty -and $ownershipProperty.Value -isnot [bool]) {
+            throw 'The previous installation receipt has an invalid ownership flag.'
+        }
+        # The published v5 receipt lacks this field. Its ownership is unknown.
+        $previousOwnership[$key] = ($old.created_by_posle -ceq $true)
+    }
+}
+
+Assert-NoReparsePoint -Path $MinecraftDirectory
+if (@($manifest.files).Count -eq 0) { throw 'Client manifest has no files.' }
+$tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+$stageRoot = [IO.Path]::GetFullPath((Join-Path $tempRoot ('posle-client-stage-' + [Guid]::NewGuid().ToString('N'))))
+if (-not $stageRoot.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    -not (Split-Path -Leaf $stageRoot).StartsWith('posle-client-stage-')) {
+    throw 'Unsafe client staging directory.'
+}
+New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
+try {
+$hardware = Get-ClientHardware
+$graphicsPolicyMigration = $previousInstall -and
+    ([int]$previousReceipt.graphics_policy_revision -lt $graphicsPolicyRevision)
+$explicitGraphicsProfile = $PSBoundParameters.ContainsKey('GraphicsProfile')
+$effectiveNoShader = if ($PSBoundParameters.ContainsKey('NoShader')) {
+    $NoShader.IsPresent
+} elseif ($explicitGraphicsProfile -or $AllowShaderUnderMemoryPressure.IsPresent) {
+    $false
+} else {
+    $previousReceipt.no_shader -eq $true
+}
+$effectiveNoResourcePack = if ($PSBoundParameters.ContainsKey('NoResourcePack')) {
+    $NoResourcePack.IsPresent
+} else {
+    $previousReceipt.no_resource_pack -eq $true
+}
+$allowShaderUnderMemoryPressure = $AllowShaderUnderMemoryPressure.IsPresent -or
+    ($previousReceipt.allow_shader_under_memory_pressure -eq $true -and -not $effectiveNoShader)
+$resolvedProfile = Resolve-GraphicsProfile -RequestedProfile $GraphicsProfile -PreviousReceipt $previousReceipt `
+    -Hardware $hardware -ExplicitChoice:$explicitGraphicsProfile
+$graphicsProfileSource = if ($explicitGraphicsProfile) {
+    if ($GraphicsProfile -eq 'Auto') { 'auto' } else { 'manual' }
+} elseif ($previousReceipt.graphics_profile_source -in @('auto', 'manual', 'legacy')) {
+    $previousReceipt.graphics_profile_source
+} elseif ($previousInstall) { 'legacy' } else { 'auto' }
+$oculusPath = Join-Path $MinecraftDirectory 'config\oculus.properties'
+Assert-NoReparsePoint -Path $oculusPath
+$applyVideoProfile = (-not $previousInstall) -or $explicitGraphicsProfile
+$applyOculus = $applyVideoProfile -or $PSBoundParameters.ContainsKey('NoShader') -or
+    $AllowShaderUnderMemoryPressure.IsPresent -or
+    (-not (Test-Path -LiteralPath $oculusPath -PathType Leaf))
+$graphicsPlan = Get-GraphicsPlan -Profile $resolvedProfile -Hardware $hardware -NoShader:$effectiveNoShader `
+    -AllowShaderUnderMemoryPressure:$allowShaderUnderMemoryPressure
+$effectiveShaderEnabled = Resolve-EffectiveShaderState -OculusPath $oculusPath `
+    -ApplyPlannedSetting:$applyOculus -PlannedValue $graphicsPlan.OculusSettings.enableShaders `
+    -ShaderPackDirectory (Join-Path $MinecraftDirectory 'shaderpacks') `
+    -ManagedShaderNames @($manifest.files | Where-Object folder -eq 'shaderpacks' | ForEach-Object filename)
+if ($effectiveNoShader -and $effectiveShaderEnabled) {
+    throw 'The saved -NoShader choice conflicts with enabled Oculus shaders. Rerun with -NoShader or explicitly clear the opt-out.'
+}
 Write-Host "Graphics profile: $resolvedProfile"
+if ($graphicsPolicyMigration -and -not $explicitGraphicsProfile) {
+    Write-Warning 'Graphics policy updated. Existing video and Oculus settings were preserved. Run with -GraphicsProfile Auto to apply the new hardware policy.'
+}
+if ($hardware -and $hardware.AvailableRamGb -ge 0 -and $hardware.AvailableRamGb -lt 4 -and
+    -not $effectiveNoShader -and -not $allowShaderUnderMemoryPressure) {
+    if ($graphicsPolicyMigration -and -not $explicitGraphicsProfile) {
+        Write-Warning 'Less than 4 GiB RAM is free; the previous shader choice remains unchanged. Close other apps and rerun with -GraphicsProfile Auto to apply the new safety rule.'
+    } else {
+        Write-Warning 'Less than 4 GiB RAM is currently free: DMS starts disabled. Close other apps and rerun with -GraphicsProfile Auto, or opt in with -AllowShaderUnderMemoryPressure if your GPU supports DMS.'
+    }
+}
 $managedFiles = New-Object 'System.Collections.Generic.List[object]'
+$candidateFiles = New-Object 'System.Collections.Generic.List[object]'
 $targetPaths = @{}
 foreach ($entry in @($manifest.files)) {
     if ($entry.folder -notin $allowedFolders) { throw "Unexpected folder: $($entry.folder)" }
     if (-not (Test-ValidFileName -Name $entry.filename)) { throw "Invalid file name: $($entry.filename)" }
-    if ($NoShader -and $entry.folder -eq 'shaderpacks') { continue }
-    if ($NoResourcePack -and $entry.folder -eq 'resourcepacks') { continue }
+    if (-not (Test-SelectedClientFile -Entry $entry -ShadersEnabled:$effectiveShaderEnabled `
+            -NoShader:$effectiveNoShader -NoResourcePack:$effectiveNoResourcePack)) { continue }
     $destination = Join-Path (Join-Path $MinecraftDirectory $entry.folder) $entry.filename
-    Get-VerifiedFile -Url $entry.url -Destination $destination -Algorithm $entry.hash_algorithm -Expected $entry.hash
+    Assert-NoReparsePoint -Path $destination
+    Get-AllowedDownloadUri -Uri ([Uri]$entry.url) -AllowedHosts $allowedHosts | Out-Null
+    if (Test-Path -LiteralPath $destination -PathType Container) {
+        throw "A directory occupies the required client file path: $destination"
+    }
+    $existedBefore = Test-Path -LiteralPath $destination -PathType Leaf
+    if ($existedBefore) {
+        if (-not (Test-MatchingHash -Path $destination -Algorithm $entry.hash_algorithm -Expected $entry.hash)) {
+            throw "Existing file has a different hash: $destination. Move it out and retry."
+        }
+        $source = $destination
+    } else {
+        $source = Join-Path (Join-Path (Join-Path $stageRoot 'downloads') $entry.folder) $entry.filename
+        Get-VerifiedFile -Url $entry.url -Destination $source -Algorithm $entry.hash_algorithm -Expected $entry.hash
+        if (-not (Test-MatchingHash -Path $source -Algorithm $entry.hash_algorithm -Expected $entry.hash)) {
+            throw "Staged download failed hash verification: $($entry.filename)"
+        }
+    }
     $relativePath = "$($entry.folder)/$($entry.filename)"
+    if ($targetPaths.ContainsKey($relativePath)) { throw "Duplicate file in client manifest: $relativePath" }
     $targetPaths[$relativePath] = $true
+    $candidateFiles.Add([pscustomobject]@{
+        Entry = $entry; Destination = $destination; Source = $source
+        ExistedBefore = $existedBefore; RelativePath = $relativePath
+    })
     $managedFiles.Add([ordered]@{
         folder = $entry.folder
         filename = $entry.filename
         hash_algorithm = $entry.hash_algorithm
         hash = $entry.hash
         default_enabled = ($entry.folder -eq 'resourcepacks' -and $entry.default_enabled -eq $true)
+        created_by_posle = ((-not $existedBefore) -or
+            ($previousOwnership["$($entry.folder)`0$($entry.filename)`0$($entry.hash_algorithm)`0$($entry.hash)"] -eq $true))
     })
 }
 
-# Upgrade from the first release. Remove only the exact old mod file our installer installed.
+# Born in Chaos 1.7.5 ships five invalid animation coordinates (the string
+# "-"). Derive the correction from the verified download in staging before
+# changing the client. Creator-owned animation assets never enter the release.
+if ($animationPatchEnabled) {
+$bornCandidates = @($candidateFiles | Where-Object { $_.Entry.project -eq 'born-in-chaos' })
+if ($bornCandidates.Count -ne 1) { throw 'The verified Born in Chaos JAR is missing from client staging.' }
+$animationPatchPath = Join-Path (Join-Path $MinecraftDirectory 'resourcepacks') $animationPatchName
+$animationPatchRelativePath = "resourcepacks/$animationPatchName"
+Assert-NoReparsePoint -Path $animationPatchPath
+if (Test-Path -LiteralPath $animationPatchPath -PathType Container) {
+    throw "A directory occupies the animation patch path: $animationPatchPath"
+}
+$animationPatchExisted = Test-Path -LiteralPath $animationPatchPath -PathType Leaf
+if ($animationPatchExisted) {
+    if ($null -eq $previousGeneratedPatch) {
+        throw "An unowned animation pack exists at $animationPatchPath. Move it out before installing."
+    }
+    if (-not (Test-MatchingHash -Path $animationPatchPath -Algorithm 'SHA256' -Expected $previousGeneratedPatch.hash)) {
+        throw "The generated animation pack has changed: $animationPatchPath. Move it out before updating."
+    }
+}
+$generator = Join-Path $PSScriptRoot 'Build-BornInChaosAnimationFix.ps1'
+if (-not (Test-Path -LiteralPath $generator -PathType Leaf)) {
+    throw 'The local animation patch generator is missing beside the installer.'
+}
+$stagedAnimationPatch = Join-Path $stageRoot $animationPatchName
+& $generator -BornJarPath $bornCandidates[0].Source -OutputZip $stagedAnimationPatch -ExpectedSha512 $bornEntry.hash | Out-Null
+if (-not (Test-Path -LiteralPath $stagedAnimationPatch -PathType Leaf)) {
+    throw 'The local animation patch was not generated in staging.'
+}
+$animationPatchHash = (Get-FileHash -LiteralPath $stagedAnimationPatch -Algorithm SHA256).Hash
+$animationPatchCurrent = $animationPatchExisted -and
+    (Test-MatchingHash -Path $animationPatchPath -Algorithm 'SHA256' -Expected $animationPatchHash)
+$animationPatchReplacement = $animationPatchExisted -and -not $animationPatchCurrent
+if ($targetPaths.ContainsKey($animationPatchRelativePath)) {
+    throw 'The generated animation patch conflicts with a manifest file.'
+}
+$targetPaths[$animationPatchRelativePath] = $true
+$animationPatchEntry = [pscustomobject]@{
+    folder = 'resourcepacks'; filename = $animationPatchName
+    hash_algorithm = 'SHA256'; hash = $animationPatchHash
+}
+$candidateFiles.Add([pscustomobject]@{
+    Entry = $animationPatchEntry; Destination = $animationPatchPath; Source = $stagedAnimationPatch
+    ExistedBefore = $animationPatchCurrent; ReplacedBefore = $animationPatchReplacement
+    PreviousHash = if ($previousGeneratedPatch) { $previousGeneratedPatch.hash } else { $null }
+    RelativePath = $animationPatchRelativePath
+})
+$managedFiles.Add([ordered]@{
+    folder = 'resourcepacks'
+    filename = $animationPatchName
+    hash_algorithm = 'SHA256'
+    hash = $animationPatchHash
+    default_enabled = $true
+    generated_locally = $true
+    created_by_posle = $true
+})
+}
+
+# The earliest migration had no ownership field or pinned manifest. Its file
+# may have been present before POSLE, so require the player to resolve it.
 $oldFlashier = Join-Path (Join-Path $MinecraftDirectory 'mods') 'Flashier Flashlights 1.2.0.jar'
-$oldFlashierHash = '1065fc113fef88c992efc7dd100aafbc6fc7179722ebc88a8962e2093731be270b2695ac65fb0287864ebcd879a044aa33d341587c7565b16bd4427fbcdbdee4'
-if (Test-MatchingHash -Path $oldFlashier -Algorithm 'SHA512' -Expected $oldFlashierHash) {
-    Remove-Item -LiteralPath $oldFlashier -Force
-    Write-Host 'Removed previous Flashier Flashlights version.'
-} elseif (Test-Path -LiteralPath $oldFlashier -PathType Leaf) {
-    throw "An unknown Flashier Flashlights file remains at $oldFlashier. Move it out before joining the updated server."
+if (Test-Path -LiteralPath $oldFlashier) {
+    throw "Legacy Flashier Flashlights ownership cannot be verified: $oldFlashier. Move it out manually before joining the updated server."
 }
 
-$forgeVersionId = '1.20.1-forge-47.4.10'
-$forgeVersionPath = Join-Path $MinecraftDirectory "versions\$forgeVersionId\$forgeVersionId.json"
-$forgeClientPath = Join-Path $MinecraftDirectory 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
-$forgeReady = (Test-Path -LiteralPath $forgeVersionPath -PathType Leaf) -and (Test-Path -LiteralPath $forgeClientPath -PathType Leaf)
-if (-not $SkipForge -and -not $forgeReady) {
-    $cache = Join-Path $MinecraftDirectory '.installer-cache'
-    $runtimeDirectory = Join-Path $MinecraftDirectory 'runtime'
-    $javaPath = Join-Path (Join-Path $runtimeDirectory $manifest.java_runtime.directory) 'bin\java.exe'
-    if (-not (Test-Path -LiteralPath $javaPath -PathType Leaf)) {
-        $javaArchive = Join-Path $cache 'amazon-corretto-17-windows-x64-jdk.zip'
-        Get-VerifiedFile -Url $manifest.java_runtime.url -Destination $javaArchive -Algorithm 'SHA256' -Expected $manifest.java_runtime.sha256
-        Write-Host 'Extracting portable Java 17...'
-        New-Item -ItemType Directory -Path $runtimeDirectory -Force | Out-Null
-        Expand-Archive -LiteralPath $javaArchive -DestinationPath $runtimeDirectory -Force
-        if (-not (Test-Path -LiteralPath $javaPath -PathType Leaf)) { throw 'Portable Java 17 archive has an unexpected layout.' }
-    }
-    $installer = Join-Path $cache 'forge-1.20.1-47.4.10-installer.jar'
-    Get-VerifiedFile -Url $manifest.forge_installer.url -Destination $installer -Algorithm 'SHA256' -Expected $manifest.forge_installer.sha256
-    $profilesPath = Join-Path $MinecraftDirectory 'launcher_profiles.json'
-    if (-not (Test-Path -LiteralPath $profilesPath -PathType Leaf)) {
-        [System.IO.File]::WriteAllText($profilesPath, '{"profiles":{},"settings":{}}', (New-Object System.Text.UTF8Encoding($false)))
-    }
-    $logPath = Join-Path $MinecraftDirectory 'forge-client-install.log'
-    Write-Host 'Installing official Forge 47.4.10 client (this can take a few minutes)...'
-    Push-Location $MinecraftDirectory
-    try {
-        & $javaPath -jar $installer --installClient $MinecraftDirectory *> $logPath
-        $forgeExitCode = $LASTEXITCODE
-    } finally {
-        Pop-Location
-    }
-    if ($forgeExitCode -ne 0 -or -not (Test-Path -LiteralPath $forgeVersionPath -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $forgeClientPath -PathType Leaf)) {
-        Get-Content -LiteralPath $logPath -Tail 20 | ForEach-Object { Write-Host $_ }
-        throw "Forge client installation failed (exit code $forgeExitCode). See $logPath"
-    }
-    $forgeReady = $true
-}
-
-# Remove only files that a previous version of this installer installed and that
-# are no longer in the current manifest. Preserve every unrecognized file.
+# Validate every obsolete file before changing any managed content. Unknown
+# ownership and player modifications remain untouched.
+$obsoleteFiles = New-Object 'System.Collections.Generic.List[object]'
 foreach ($old in @($previousReceipt.managed_files | Where-Object { $null -ne $_ })) {
-    if ($old.folder -notin $allowedFolders -or -not (Test-ValidFileName -Name $old.filename) -or
-        $old.hash_algorithm -notin @('SHA256', 'SHA512')) {
-        throw 'The previous installation receipt contains an unsafe file entry.'
-    }
     $relativePath = "$($old.folder)/$($old.filename)"
     if ($targetPaths.ContainsKey($relativePath)) { continue }
     $oldPath = Join-Path (Join-Path $MinecraftDirectory $old.folder) $old.filename
     if (-not (Test-Path -LiteralPath $oldPath -PathType Leaf)) { continue }
+    Assert-NoReparsePoint -Path $oldPath
+    if ($old.created_by_posle -cne $true) {
+        Write-Warning "Preserved pre-existing or legacy unknown-ownership file: $relativePath"
+        continue
+    }
     if (-not (Test-MatchingHash -Path $oldPath -Algorithm $old.hash_algorithm -Expected $old.hash)) {
         throw "An old managed file has changed: $oldPath. Move it out before updating."
     }
-    Remove-Item -LiteralPath $oldPath -Force
-    Write-Host "Removed obsolete pack file: $relativePath"
+    $obsoleteFiles.Add([pscustomobject]@{ Entry = $old; Path = $oldPath; RelativePath = $relativePath })
+}
+Assert-CreatureModSet -Candidates $candidateFiles.ToArray() -ObsoleteFiles $obsoleteFiles.ToArray() -ClientRoot $MinecraftDirectory
+
+$forgeVersionId = '1.20.1-forge-47.4.10'
+$forgeReady = Test-ForgeReady -ClientRoot $MinecraftDirectory -VersionId $forgeVersionId
+$runtimeDirectory = Join-Path $MinecraftDirectory 'runtime'
+$javaPath = Join-Path (Join-Path $runtimeDirectory $manifest.java_runtime.directory) 'bin\java.exe'
+Assert-NoReparsePoint -Path $javaPath
+$javaReady = Test-MatchingHash -Path $javaPath -Algorithm 'SHA256' -Expected $pinnedJavaExeSha256
+if (-not $SkipForge -and (-not $forgeReady -or -not $javaReady)) {
+    if (-not $javaReady) {
+        $javaArchive = Join-Path $stageRoot 'amazon-corretto-17-windows-x64-jdk.zip'
+        Get-VerifiedFile -Url $manifest.java_runtime.url -Destination $javaArchive -Algorithm 'SHA256' -Expected $manifest.java_runtime.sha256 -MaxBytes 256MB
+        if (-not (Test-MatchingHash -Path $javaArchive -Algorithm 'SHA256' -Expected $manifest.java_runtime.sha256)) {
+            throw 'Portable Java archive failed hash verification.'
+        }
+    }
+    if (-not $forgeReady) {
+        $installer = Join-Path $stageRoot 'forge-1.20.1-47.4.10-installer.jar'
+        Get-VerifiedFile -Url $manifest.forge_installer.url -Destination $installer -Algorithm 'SHA256' -Expected $manifest.forge_installer.sha256
+        if (-not (Test-MatchingHash -Path $installer -Algorithm 'SHA256' -Expected $manifest.forge_installer.sha256)) {
+            throw 'Forge installer failed hash verification.'
+        }
+    }
+
+    # Repair the dedicated runtime after pack preflight. The archive and the
+    # extracted java.exe are pinned, including on a rerun with valid Forge.
+    Assert-NoReparsePoint -Path $MinecraftDirectory
+    New-Item -ItemType Directory -Path $MinecraftDirectory -Force | Out-Null
+    if (-not $javaReady) {
+        Assert-NoReparsePoint -Path $runtimeDirectory
+        Assert-NoReparsePoint -Path $javaPath
+        Write-Host 'Installing or repairing portable Java 17...'
+        New-Item -ItemType Directory -Path $runtimeDirectory -Force | Out-Null
+        Expand-Archive -LiteralPath $javaArchive -DestinationPath $runtimeDirectory -Force
+        if (-not (Test-Path -LiteralPath $javaPath -PathType Leaf)) { throw 'Portable Java 17 archive has an unexpected layout.' }
+    }
+    Assert-NoReparsePoint -Path $javaPath
+    if (-not (Test-MatchingHash -Path $javaPath -Algorithm 'SHA256' -Expected $pinnedJavaExeSha256)) {
+        throw 'Portable Java executable hash mismatch.'
+    }
+    if (-not $forgeReady) {
+        # The official Forge installer writes into these subdirectories and
+        # files; never let a junction redirect it into another game folder.
+        foreach ($path in @(
+            (Join-Path $MinecraftDirectory 'versions'),
+            (Join-Path $MinecraftDirectory 'libraries'),
+            (Join-Path $MinecraftDirectory 'assets'),
+            (Join-Path $MinecraftDirectory 'launcher_profiles.json'),
+            (Join-Path $MinecraftDirectory 'forge-client-install.log')
+        )) { Assert-NoReparsePoint -Path $path }
+        $profilesPath = Join-Path $MinecraftDirectory 'launcher_profiles.json'
+        if (-not (Test-Path -LiteralPath $profilesPath -PathType Leaf)) {
+            [System.IO.File]::WriteAllText($profilesPath, '{"profiles":{},"settings":{}}', (New-Object System.Text.UTF8Encoding($false)))
+        }
+        $logPath = Join-Path $MinecraftDirectory 'forge-client-install.log'
+        Write-Host 'Installing official Forge 47.4.10 client (this can take a few minutes)...'
+        Push-Location $MinecraftDirectory
+        try {
+            & $javaPath -jar $installer --installClient $MinecraftDirectory *> $logPath
+            $forgeExitCode = $LASTEXITCODE
+        } finally {
+            Pop-Location
+        }
+        if ($forgeExitCode -ne 0 -or -not (Test-ForgeReady -ClientRoot $MinecraftDirectory -VersionId $forgeVersionId)) {
+            Get-Content -LiteralPath $logPath -Tail 20 | ForEach-Object { Write-Host $_ }
+            throw "Forge client installation failed (exit code $forgeExitCode). See $logPath"
+        }
+        $forgeReady = $true
+    }
 }
 
-$shouldApplyGraphics = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
-    $NoShader.IsPresent -or $NoResourcePack.IsPresent -or
-    $previousReceipt.pack_version -ne $manifest.pack_version
-if ($shouldApplyGraphics) {
-    $videoSettings = switch ($resolvedProfile) {
-        'Low' { [ordered]@{ renderDistance='6'; simulationDistance='5'; graphicsMode='0'; particles='2'; entityShadows='false'; entityDistanceScaling='0.5'; mipmapLevels='2'; maxFps='60' } }
-        'Balanced' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='1'; entityShadows='false'; entityDistanceScaling='0.75'; mipmapLevels='4'; maxFps='90' } }
-        'Cinematic' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='0'; entityShadows='true'; entityDistanceScaling='1.0'; mipmapLevels='4'; maxFps='120' } }
+# Keep a recoverable copy of every installer-managed setting before the first
+# pack mutation. Backups live outside the client root and are hash checked.
+Assert-NoReparsePoint -Path $MinecraftDirectory
+New-Item -ItemType Directory -Path $MinecraftDirectory -Force | Out-Null
+$settingsPaths = @(
+    (Join-Path $MinecraftDirectory 'options.txt'),
+    (Join-Path $MinecraftDirectory 'options.txt.horror-backup'),
+    (Join-Path $MinecraftDirectory 'config\oculus.properties'),
+    (Join-Path $MinecraftDirectory 'config\oculus.properties.horror-backup'),
+    $receiptPath
+)
+$settingsBackups = New-Object 'System.Collections.Generic.List[object]'
+for ($index = 0; $index -lt $settingsPaths.Count; $index++) {
+    $path = $settingsPaths[$index]
+    Assert-NoReparsePoint -Path $path
+    $existed = Test-Path -LiteralPath $path -PathType Leaf
+    $backup = Join-Path $stageRoot "settings-$index.backup"
+    if ($existed) {
+        Copy-Item -LiteralPath $path -Destination $backup
+        $originalHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+        if (-not (Test-MatchingHash -Path $backup -Algorithm 'SHA256' -Expected $originalHash)) {
+            throw "Could not back up client setting: $path"
+        }
     }
-    Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'options.txt') -Separator ':' -Values $videoSettings
-    $shaderEnabled = ($resolvedProfile -eq 'Cinematic') -and (-not $NoShader.IsPresent)
-    $oculusSettings = [ordered]@{
-        shaderPack = 'DMS 1.0.3.zip'
-        enableShaders = $shaderEnabled.ToString().ToLowerInvariant()
-        maxShadowRenderDistance = '8'
+    $settingsBackups.Add([pscustomobject]@{ Path = $path; Backup = $backup; Existed = $existed })
+}
+$createdFiles = New-Object 'System.Collections.Generic.List[object]'
+$replacedFiles = New-Object 'System.Collections.Generic.List[object]'
+$obsoleteBackups = New-Object 'System.Collections.Generic.List[object]'
+$temporaryFiles = New-Object 'System.Collections.Generic.List[string]'
+try {
+    foreach ($candidate in $candidateFiles) {
+        if ($candidate.ExistedBefore) { continue }
+        $destination = $candidate.Destination
+        $parent = Split-Path -Parent $destination
+        Assert-NoReparsePoint -Path $destination
+        if (-not $candidate.ReplacedBefore -and (Test-Path -LiteralPath $destination)) {
+            throw "Client file appeared during update: $destination"
+        }
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+        $temporary = Join-Path $parent ('.posle-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+        $temporaryFiles.Add($temporary)
+        Copy-Item -LiteralPath $candidate.Source -Destination $temporary
+        if (-not (Test-MatchingHash -Path $temporary -Algorithm $candidate.Entry.hash_algorithm -Expected $candidate.Entry.hash)) {
+            throw "Copy failed hash verification: $($candidate.Entry.filename)"
+        }
+        Assert-NoReparsePoint -Path $destination
+        if ($candidate.ReplacedBefore) {
+            if ($candidate.RelativePath -cne $animationPatchRelativePath -or
+                -not (Test-MatchingHash -Path $destination -Algorithm 'SHA256' -Expected $candidate.PreviousHash)) {
+                throw "The generated animation patch changed during update: $destination"
+            }
+            $backup = Join-Path $stageRoot 'previous-animation-patch.backup'
+            Copy-Item -LiteralPath $destination -Destination $backup
+            if (-not (Test-MatchingHash -Path $backup -Algorithm 'SHA256' -Expected $candidate.PreviousHash)) {
+                throw 'Could not back up the previous animation patch.'
+            }
+            $replacedFiles.Add([pscustomobject]@{
+                Destination = $destination; Backup = $backup; NewHash = $candidate.Entry.hash
+                PreviousHash = $candidate.PreviousHash; RelativePath = $candidate.RelativePath
+            })
+            $localBackup = Join-Path $parent ('.posle-' + [Guid]::NewGuid().ToString('N') + '.bak')
+            $temporaryFiles.Add($localBackup)
+            [IO.File]::Replace($temporary, $destination, $localBackup)
+            if (Test-Path -LiteralPath $localBackup -PathType Leaf) {
+                Remove-Item -LiteralPath $localBackup -Force
+            }
+        } else {
+            if (Test-Path -LiteralPath $destination) { throw "Client file appeared during update: $destination" }
+            Move-Item -LiteralPath $temporary -Destination $destination
+            $createdFiles.Add($candidate)
+        }
     }
-    Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'config\oculus.properties') -Separator '=' -Values $oculusSettings
+    foreach ($obsolete in $obsoleteFiles) {
+        $path = $obsolete.Path
+        Assert-NoReparsePoint -Path $path
+        if (-not (Test-MatchingHash -Path $path -Algorithm $obsolete.Entry.hash_algorithm -Expected $obsolete.Entry.hash)) {
+            throw "Old managed file changed during update: $path"
+        }
+        $backup = Join-Path (Join-Path (Join-Path $stageRoot 'obsolete') $obsolete.Entry.folder) $obsolete.Entry.filename
+        New-Item -ItemType Directory -Path (Split-Path -Parent $backup) -Force | Out-Null
+        Copy-Item -LiteralPath $path -Destination $backup
+        if (-not (Test-MatchingHash -Path $backup -Algorithm $obsolete.Entry.hash_algorithm -Expected $obsolete.Entry.hash)) {
+            throw "Could not back up old managed file: $path"
+        }
+        Assert-NoReparsePoint -Path $path
+        $obsoleteBackups.Add([pscustomobject]@{
+            Path = $path; Backup = $backup; RelativePath = $obsolete.RelativePath; Entry = $obsolete.Entry
+        })
+        Remove-Item -LiteralPath $path -Force
+        Write-Host "Removed obsolete pack file: $($obsolete.RelativePath)"
+    }
+
+if ($applyVideoProfile -or $applyOculus) {
+    if ($applyVideoProfile) {
+        Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'options.txt') -Separator ':' -Values $graphicsPlan.VideoSettings
+    }
+    if ($applyOculus) {
+        Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'config\oculus.properties') -Separator '=' -Values $graphicsPlan.OculusSettings
+    }
 }
 
 $defaultResourcePacks = @($manifest.files | Where-Object {
@@ -294,17 +1013,32 @@ foreach ($pack in $defaultResourcePacks) {
 $obsoleteResourcePacks = @($previousResourcePacks | Where-Object {
     -not $targetPaths.ContainsKey("resourcepacks/$($_.filename)")
 })
-$refreshResourcePacks = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
-    $NoResourcePack.IsPresent -or $newDefaultResourcePack -or $obsoleteResourcePacks.Count -gt 0
+$refreshResourcePacks = (-not $previousInstall) -or $explicitGraphicsProfile -or
+    $PSBoundParameters.ContainsKey('NoResourcePack') -or $newDefaultResourcePack -or $obsoleteResourcePacks.Count -gt 0
 if ($refreshResourcePacks -and ($defaultResourcePacks.Count -gt 0 -or $previousResourcePacks.Count -gt 0)) {
     $removeIds = @($previousResourcePacks | Where-Object {
-        $_.default_enabled -eq $true -or $NoResourcePack.IsPresent -or
+        $_.default_enabled -eq $true -or $effectiveNoResourcePack -or
             -not $targetPaths.ContainsKey("resourcepacks/$($_.filename)")
     } | ForEach-Object { "file/$($_.filename)" })
     $defaultIds = @($defaultResourcePacks | ForEach-Object { "file/$($_.filename)" })
     $removeIds += $defaultIds
-    $addIds = if ($NoResourcePack.IsPresent) { @() } else { $defaultIds }
+    $addIds = if ($effectiveNoResourcePack) { @() } else { $defaultIds }
     Update-ResourcePackSelection -Path (Join-Path $MinecraftDirectory 'options.txt') -RemoveIds $removeIds -AddIds $addIds
+}
+# Keep the tiny parser correction active even with -NoResourcePack; that switch
+# disables optional visual packs, while this one repairs four mob animations.
+if ($animationPatchEnabled) {
+    Update-ResourcePackSelection -Path (Join-Path $MinecraftDirectory 'options.txt') `
+        -RemoveIds @("file/$animationPatchName") -AddIds @("file/$animationPatchName")
+}
+
+# Existing files were checked during preflight; recheck them and newly copied
+# files immediately before claiming a successful installation in the receipt.
+foreach ($candidate in $candidateFiles) {
+    Assert-NoReparsePoint -Path $candidate.Destination
+    if (-not (Test-MatchingHash -Path $candidate.Destination -Algorithm $candidate.Entry.hash_algorithm -Expected $candidate.Entry.hash)) {
+        throw "Client file changed during update: $($candidate.RelativePath)"
+    }
 }
 
 $receipt = [ordered]@{
@@ -315,17 +1049,112 @@ $receipt = [ordered]@{
     installed_at = (Get-Date).ToString('o')
     minecraft_directory = $MinecraftDirectory
     graphics_profile = $resolvedProfile
+    graphics_profile_source = $graphicsProfileSource
+    graphics_policy_revision = $graphicsPolicyRevision
+    no_shader = [bool]$effectiveNoShader
+    shader_enabled = [bool]$effectiveShaderEnabled
+    allow_shader_under_memory_pressure = [bool]$allowShaderUnderMemoryPressure
+    no_resource_pack = [bool]$effectiveNoResourcePack
     forge_installed = $forgeReady
-    shader_installed = (Test-Path -LiteralPath (Join-Path $MinecraftDirectory 'shaderpacks\DMS 1.0.3.zip') -PathType Leaf)
+    shader_installed = (@($managedFiles | Where-Object {
+        $_.folder -eq 'shaderpacks' -and $_.filename -eq 'DMS 1.0.3.zip'
+    }).Count -eq 1)
     managed_files = @($managedFiles.ToArray())
 }
-$receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
+if ($animationPatchEnabled) {
+    $receipt['animation_patch_revision'] = $animationPatchRevision
+    $receipt['animation_patch_source_sha512'] = $bornEntry.hash
+}
+$receiptTemporary = Join-Path $MinecraftDirectory ('.posle-receipt-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+$temporaryFiles.Add($receiptTemporary)
+$receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $receiptTemporary -Encoding UTF8
+Assert-NoReparsePoint -Path $receiptPath
+Move-Item -LiteralPath $receiptTemporary -Destination $receiptPath -Force
+} catch {
+    $originalError = $_
+    $rollbackErrors = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($created in $createdFiles) {
+        try {
+            if (Test-Path -LiteralPath $created.Destination -PathType Leaf) {
+                Assert-NoReparsePoint -Path $created.Destination
+                if (-not (Test-MatchingHash -Path $created.Destination -Algorithm $created.Entry.hash_algorithm -Expected $created.Entry.hash)) {
+                    throw 'New file changed during rollback; preserved it for manual recovery.'
+                }
+                Remove-Item -LiteralPath $created.Destination -Force
+            }
+        } catch { $rollbackErrors.Add("$($created.RelativePath): $($_.Exception.Message)") }
+    }
+    foreach ($replaced in $replacedFiles) {
+        try {
+            Assert-NoReparsePoint -Path $replaced.Destination
+            if (Test-MatchingHash -Path $replaced.Destination -Algorithm 'SHA256' -Expected $replaced.PreviousHash) {
+                continue
+            }
+            if (-not (Test-MatchingHash -Path $replaced.Destination -Algorithm 'SHA256' -Expected $replaced.NewHash)) {
+                throw 'Replacement changed during rollback; preserved it for manual recovery.'
+            }
+            Copy-Item -LiteralPath $replaced.Backup -Destination $replaced.Destination -Force
+            if (-not (Test-MatchingHash -Path $replaced.Destination -Algorithm 'SHA256' -Expected $replaced.PreviousHash)) {
+                throw 'Restored animation patch failed hash verification.'
+            }
+        } catch { $rollbackErrors.Add("$($replaced.RelativePath): $($_.Exception.Message)") }
+    }
+    foreach ($retired in $obsoleteBackups) {
+        try {
+            Assert-NoReparsePoint -Path $retired.Path
+            if (-not (Test-Path -LiteralPath $retired.Path)) {
+                Copy-Item -LiteralPath $retired.Backup -Destination $retired.Path
+            }
+            if (-not (Test-MatchingHash -Path $retired.Path -Algorithm $retired.Entry.hash_algorithm -Expected $retired.Entry.hash)) {
+                throw 'Restored old file failed hash verification.'
+            }
+        } catch { $rollbackErrors.Add("$($retired.RelativePath): $($_.Exception.Message)") }
+    }
+    foreach ($snapshot in $settingsBackups) {
+        try {
+            Assert-NoReparsePoint -Path $snapshot.Path
+            if ($snapshot.Existed) {
+                if (Test-Path -LiteralPath $snapshot.Path -PathType Container) { throw 'Setting path became a directory.' }
+                Copy-Item -LiteralPath $snapshot.Backup -Destination $snapshot.Path -Force
+            } elseif (Test-Path -LiteralPath $snapshot.Path -PathType Leaf) {
+                Remove-Item -LiteralPath $snapshot.Path -Force
+            }
+        } catch { $rollbackErrors.Add("$(Split-Path -Leaf $snapshot.Path): $($_.Exception.Message)") }
+    }
+    foreach ($temporary in $temporaryFiles) {
+        try {
+            if (Test-Path -LiteralPath $temporary -PathType Leaf) {
+                Assert-NoReparsePoint -Path $temporary
+                Remove-Item -LiteralPath $temporary -Force
+            }
+        } catch { $rollbackErrors.Add("temporary file: $($_.Exception.Message)") }
+    }
+    if ($rollbackErrors.Count -gt 0) {
+        $preserveStage = $true
+        throw "Client update failed: $($originalError.Exception.Message). Rollback needs manual repair: $($rollbackErrors -join '; '). Backups: $stageRoot"
+    }
+    throw "Client update failed and managed files were rolled back: $($originalError.Exception.Message)"
+}
 Write-Host ''
-Write-Host "Ready: $MinecraftDirectory"
-if ($forgeReady) { Write-Host "Forge installed: $forgeVersionId" }
+Write-Host "Client pack files installed: $MinecraftDirectory"
+if ($forgeReady) { Write-Host "Forge bootstrap files verified: $forgeVersionId" }
 Write-Host 'In TLauncher, choose this game directory and the Forge 1.20.1 / 47.4.10 version.'
+Write-Host 'On first launch, TLauncher may download vanilla version metadata and game assets.'
+Write-Host 'The installer has not verified a game launch or server connection.'
 Write-Host 'DynamicRenderDistance adjusts view distance in play; use F8 to set a maximum of 8 chunks.'
 Write-Host "Server address: $($manifest.server_address)"
+
+if ($OfferWebsitePlay) {
+    $configurePlay = Join-Path $PSScriptRoot 'Configure-WebsitePlay.ps1'
+    if (-not (Test-Path -LiteralPath $configurePlay -PathType Leaf)) {
+        throw 'Client files are installed, but website Play setup is missing from the installer archive.'
+    }
+    try {
+        & $configurePlay -MinecraftDirectory $MinecraftDirectory -Decision $WebsitePlayDecision
+    } catch {
+        throw "Client files are installed, but website Play setup failed: $($_.Exception.Message). You can still open TLauncher manually."
+    }
+}
 
 if ($LaunchTLauncher) {
     $candidates = @(
@@ -349,5 +1178,16 @@ if ($LaunchTLauncher) {
         Write-Host 'TLauncher opened. Select the game directory shown above and Forge 1.20.1 / 47.4.10 in its window.'
     } else {
         Write-Warning 'A signed TLauncher.exe was not found. Open your Minecraft launcher manually.'
+    }
+}
+} finally {
+    if (-not $preserveStage -and (Test-Path -LiteralPath $stageRoot)) {
+        $resolvedStage = [IO.Path]::GetFullPath($stageRoot)
+        if (-not $resolvedStage.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or
+            -not (Split-Path -Leaf $resolvedStage).StartsWith('posle-client-stage-')) {
+            throw 'Refusing to remove staging outside the expected temp scope.'
+        }
+        Assert-NoReparsePoint -Path $resolvedStage
+        Remove-Item -LiteralPath $resolvedStage -Recurse -Force
     }
 }

@@ -1,0 +1,29 @@
+plugins {
+    id 'eclipse'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+version = '0.1.0-rc5'
+group = 'dev.posle'
+base { archivesName = 'poslecreatures-forge-47.4.10' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.10'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('jar', Jar).configure { preserveFileTimestamps = false; reproducibleFileOrder = true; finalizedBy 'reobfJar' }
+tasks.register('geometryTest', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.posle.creatures.CreeperProximityTest'
+}
+tasks.register('explosionGuardTest', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.posle.creatures.RuinExplosionGuardTest'
+}

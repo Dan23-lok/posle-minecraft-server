@@ -1,6 +1,6 @@
 @echo off
 setlocal
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-HorrorClient.ps1" -LaunchTLauncher %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-HorrorClient.ps1" -OfferWebsitePlay -LaunchTLauncher %*
 if errorlevel 1 (
   echo.
   echo Installation failed. Read the error above.
