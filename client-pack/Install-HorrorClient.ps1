@@ -11,6 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+Add-Type -AssemblyName System.Net.Http
 $manifestPath = Join-Path $PSScriptRoot 'client-modpack.json'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw 'client-modpack.json is missing beside this script.'
@@ -27,7 +28,7 @@ $previousReceipt = if ($previousInstall) {
     try { Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json }
     catch { throw "The previous installation receipt is invalid: $receiptPath" }
 } else { $null }
-$allowedHosts = @('cdn.modrinth.com', 'www.curseforge.com', 'mediafilez.forgecdn.net',
+$allowedHosts = @('cdn.modrinth.com', 'www.curseforge.com', 'edge.forgecdn.net', 'mediafilez.forgecdn.net',
     'maven.minecraftforge.net', 'corretto.aws')
 $allowedFolders = @('mods', 'shaderpacks', 'resourcepacks')
 
@@ -46,11 +47,68 @@ function Test-MatchingHash {
     return $actual.Equals($Expected, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Get-AllowedDownloadUri {
+    param([Uri]$Uri, [string[]]$AllowedHosts)
+    if (-not $Uri.IsAbsoluteUri -or $Uri.Scheme -ne 'https' -or
+        $Uri.Host -notin $AllowedHosts -or $Uri.UserInfo -or -not $Uri.IsDefaultPort) {
+        throw "Untrusted download URL: $Uri"
+    }
+    return $Uri
+}
+
+function Save-AllowedDownload {
+    param([string]$Url, [string]$Destination, [string[]]$AllowedHosts,
+        [System.Net.Http.HttpClient]$Client)
+    # Automatic redirects can leave the approved host. Inspect every hop,
+    # including relative Location headers, before sending the next request.
+    $ownsClient = $null -eq $Client
+    if ($ownsClient) {
+        $handler = [System.Net.Http.HttpClientHandler]::new()
+        $handler.AllowAutoRedirect = $false
+        $Client = [System.Net.Http.HttpClient]::new($handler)
+        $Client.Timeout = [TimeSpan]::FromMinutes(15)
+    }
+    try {
+        $current = Get-AllowedDownloadUri -Uri ([Uri]$Url) -AllowedHosts $AllowedHosts
+        for ($hop = 0; $hop -le 8; $hop++) {
+            $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Get, $current)
+            $response = $null
+            try {
+                $response = $Client.SendAsync($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+                $status = [int]$response.StatusCode
+                if ($status -ge 300 -and $status -lt 400) {
+                    if ($hop -eq 8 -or -not $response.Headers.Location) {
+                        throw 'Download has too many redirects or a redirect without Location.'
+                    }
+                    $next = [Uri]::new($current, $response.Headers.Location)
+                    $current = Get-AllowedDownloadUri -Uri $next -AllowedHosts $AllowedHosts
+                    continue
+                }
+                $response.EnsureSuccessStatusCode() | Out-Null
+                $source = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+                try {
+                    $target = [System.IO.File]::Open($Destination, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
+                    try { $source.CopyTo($target) } finally { $target.Dispose() }
+                } finally { $source.Dispose() }
+                return
+            } finally {
+                if ($response) { $response.Dispose() }
+                $request.Dispose()
+            }
+        }
+        throw 'Download exceeded the redirect limit.'
+    } finally {
+        if ($ownsClient) {
+            $Client.Dispose()
+            $handler.Dispose()
+        }
+    }
+}
+
 function Get-VerifiedFile {
     param([string]$Url, [string]$Destination, [string]$Algorithm, [string]$Expected)
     if ($Algorithm -notin @('SHA256', 'SHA512')) { throw "Invalid hash algorithm: $Algorithm" }
-    $uri = [Uri]$Url
-    if ($uri.Scheme -ne 'https' -or $uri.Host -notin $allowedHosts) { throw "Unexpected download host: $Url" }
+    Get-AllowedDownloadUri -Uri ([Uri]$Url) -AllowedHosts $allowedHosts | Out-Null
     if (Test-MatchingHash -Path $Destination -Algorithm $Algorithm -Expected $Expected) {
         Write-Host "OK  $(Split-Path -Leaf $Destination)"
         return
@@ -65,7 +123,7 @@ function Get-VerifiedFile {
     try {
         for ($attempt = 1; $attempt -le 3; $attempt++) {
             try {
-                Invoke-WebRequest -Uri $Url -OutFile $temporary -MaximumRedirection 8 -UseBasicParsing
+                Save-AllowedDownload -Url $Url -Destination $temporary -AllowedHosts $allowedHosts
                 break
             } catch {
                 if ($attempt -eq 3) { throw }
@@ -81,29 +139,87 @@ function Get-VerifiedFile {
     }
 }
 
-function Get-AutoGraphicsProfile {
+function Get-ClientHardware {
     try {
         $system = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
-        $ramGb = [double]$system.TotalPhysicalMemory / 1GB
-        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop |
-            Where-Object { $_.Name -notmatch 'Microsoft Basic|Remote Display|Virtual Display' })
-        $gpuNames = (($gpus | ForEach-Object { $_.Name }) -join ' ')
-        $discreteGpu = $gpuNames -match 'GeForce|Radeon RX|Intel Arc|NVIDIA RTX'
-        $olderGpu = $gpuNames -match 'GeForce GTX ([6-9][0-9]{2}|10[0-5]0|16[0-5]0)' -or
-            $gpuNames -match 'Radeon RX [4-5][0-9]{2}|Intel Arc A3[0-9]{2}'
-        if ($ramGb -lt 12 -or -not $discreteGpu -or $olderGpu) {
-            return 'Low'
+        $processors = @(Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop)
+        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop)
+        $cores = ($processors | Measure-Object -Property NumberOfCores -Sum).Sum
+        if (-not $system.TotalPhysicalMemory -or -not $cores) {
+            throw 'Missing RAM or CPU core count'
         }
-        $strongGpu = $gpuNames -match 'GeForce RTX (30[7-9]0|40[7-9]0|50[7-9]0|60[7-9]0)' -or
-            $gpuNames -match 'Radeon RX (67|68|69|77|78|79|87|88|89)[0-9]{2}'
-        if ($ramGb -ge 24 -and $strongGpu) {
-            return 'Cinematic'
+        return [pscustomobject]@{
+            RamGb = [double]$system.TotalPhysicalMemory / 1GB
+            CpuCores = [int]$cores
+            GpuNames = (($gpus | ForEach-Object { $_.Name }) -join ' ')
         }
     } catch {
-        Write-Warning 'Hardware detection was unavailable; using low settings.'
+        Write-Warning 'Hardware detection was unavailable; using a conservative graphics plan.'
+        return $null
+    }
+}
+
+function Get-AutoGraphicsProfile {
+    param($Hardware)
+    if (-not $Hardware) { return 'Low' }
+    $ramGb = [double]$Hardware.RamGb
+    $cpuCores = [int]$Hardware.CpuCores
+    $gpuNames = [string]$Hardware.GpuNames
+    $discreteGpu = $gpuNames -match 'GeForce|Radeon RX|Intel Arc|NVIDIA RTX'
+    $olderGpu = $gpuNames -match 'GeForce GTX ([6-9][0-9]{2}|10[0-5]0|16[0-5]0)\b' -or
+        $gpuNames -match 'Radeon RX [4-5][0-9]{2}\b|Intel Arc A3[0-9]{2}\b'
+    if ($ramGb -lt 12 -or $cpuCores -lt 4 -or -not $discreteGpu -or $olderGpu) {
         return 'Low'
     }
+    $strongGpu = $gpuNames -match 'GeForce RTX (30[7-9]0|40[7-9]0|50[7-9]0|60[7-9]0)\b' -or
+        $gpuNames -match 'Radeon RX (67|68|69|77|78|79|87|88|89)[0-9]{2}\b'
+    if ($ramGb -ge 24 -and $cpuCores -ge 6 -and $strongGpu) {
+        return 'Cinematic'
+    }
     return 'Balanced'
+}
+
+function Resolve-GraphicsProfile {
+    param(
+        [ValidateSet('Auto', 'Low', 'Balanced', 'Cinematic')][string]$RequestedProfile,
+        $PreviousReceipt,
+        $Hardware,
+        [switch]$ExplicitChoice
+    )
+    if ($RequestedProfile -ne 'Auto') { return $RequestedProfile }
+    if (-not $ExplicitChoice.IsPresent -and $PreviousReceipt -and
+        $PreviousReceipt.graphics_profile -in @('Low', 'Balanced', 'Cinematic')) {
+        return $PreviousReceipt.graphics_profile
+    }
+    return Get-AutoGraphicsProfile -Hardware $Hardware
+}
+
+function Get-GraphicsPlan {
+    param(
+        [ValidateSet('Low', 'Balanced', 'Cinematic')][string]$Profile,
+        $Hardware,
+        [switch]$NoShader
+    )
+    $gpuNames = if ($Hardware) { [string]$Hardware.GpuNames } else { '' }
+    # The bundled DMS shader is listed as a low-end shader by its author, but
+    # adapter names cannot prove OpenGL compatibility or actual frame rate.
+    $shaderGpu = $gpuNames -match 'GeForce GTX (9[0-9]{2}|10[0-9]{2}|16[0-9]{2})\b|GeForce RTX|NVIDIA RTX|Radeon RX [5-9][0-9]{3}\b|Intel Arc'
+    $enableShader = (-not $NoShader.IsPresent) -and $Hardware -and
+        ([double]$Hardware.RamGb -ge 12) -and ([int]$Hardware.CpuCores -ge 4) -and $shaderGpu
+    $video = switch ($Profile) {
+        'Low' { [ordered]@{ renderDistance='6'; simulationDistance='5'; graphicsMode='0'; particles='2'; entityShadows='false'; entityDistanceScaling='0.5'; mipmapLevels='2'; maxFps='60'; gamma='0.0' } }
+        'Balanced' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='1'; entityShadows='false'; entityDistanceScaling='0.75'; mipmapLevels='4'; maxFps='90'; gamma='0.0' } }
+        'Cinematic' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='0'; entityShadows='true'; entityDistanceScaling='1.0'; mipmapLevels='4'; maxFps='120'; gamma='0.0' } }
+    }
+    $shadowDistance = switch ($Profile) { 'Low' { '4' } 'Balanced' { '6' } 'Cinematic' { '8' } }
+    return [pscustomobject]@{
+        VideoSettings = $video
+        OculusSettings = [ordered]@{
+            shaderPack = 'DMS 1.0.3.zip'
+            enableShaders = ([bool]$enableShader).ToString().ToLowerInvariant()
+            maxShadowRenderDistance = $shadowDistance
+        }
+    }
 }
 
 function Update-KeyValueFile {
@@ -161,13 +277,9 @@ function Update-ResourcePackSelection {
     Update-KeyValueFile -Path $Path -Separator ':' -Values ([ordered]@{ resourcePacks = $value })
 }
 
-$resolvedProfile = if ($GraphicsProfile -eq 'Auto') {
-    if ($previousReceipt -and $previousReceipt.graphics_profile -in @('Low', 'Balanced', 'Cinematic')) {
-        $previousReceipt.graphics_profile
-    } else {
-        Get-AutoGraphicsProfile
-    }
-} else { $GraphicsProfile }
+$hardware = Get-ClientHardware
+$resolvedProfile = Resolve-GraphicsProfile -RequestedProfile $GraphicsProfile -PreviousReceipt $previousReceipt `
+    -Hardware $hardware -ExplicitChoice:($PSBoundParameters.ContainsKey('GraphicsProfile'))
 Write-Host "Graphics profile: $resolvedProfile"
 $managedFiles = New-Object 'System.Collections.Generic.List[object]'
 $targetPaths = @{}
@@ -256,23 +368,18 @@ foreach ($old in @($previousReceipt.managed_files | Where-Object { $null -ne $_ 
     Write-Host "Removed obsolete pack file: $relativePath"
 }
 
-$shouldApplyGraphics = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
-    $NoShader.IsPresent -or $NoResourcePack.IsPresent -or
+$applyVideoProfile = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
     $previousReceipt.pack_version -ne $manifest.pack_version
-if ($shouldApplyGraphics) {
-    $videoSettings = switch ($resolvedProfile) {
-        'Low' { [ordered]@{ renderDistance='6'; simulationDistance='5'; graphicsMode='0'; particles='2'; entityShadows='false'; entityDistanceScaling='0.5'; mipmapLevels='2'; maxFps='60' } }
-        'Balanced' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='1'; entityShadows='false'; entityDistanceScaling='0.75'; mipmapLevels='4'; maxFps='90' } }
-        'Cinematic' { [ordered]@{ renderDistance='8'; simulationDistance='6'; graphicsMode='1'; particles='0'; entityShadows='true'; entityDistanceScaling='1.0'; mipmapLevels='4'; maxFps='120' } }
+$applyOculus = $applyVideoProfile -or $NoShader.IsPresent -or
+    ($previousReceipt.no_shader -eq $true -and -not $NoShader.IsPresent)
+if ($applyVideoProfile -or $applyOculus) {
+    $graphicsPlan = Get-GraphicsPlan -Profile $resolvedProfile -Hardware $hardware -NoShader:$NoShader
+    if ($applyVideoProfile) {
+        Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'options.txt') -Separator ':' -Values $graphicsPlan.VideoSettings
     }
-    Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'options.txt') -Separator ':' -Values $videoSettings
-    $shaderEnabled = ($resolvedProfile -eq 'Cinematic') -and (-not $NoShader.IsPresent)
-    $oculusSettings = [ordered]@{
-        shaderPack = 'DMS 1.0.3.zip'
-        enableShaders = $shaderEnabled.ToString().ToLowerInvariant()
-        maxShadowRenderDistance = '8'
+    if ($applyOculus) {
+        Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'config\oculus.properties') -Separator '=' -Values $graphicsPlan.OculusSettings
     }
-    Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'config\oculus.properties') -Separator '=' -Values $oculusSettings
 }
 
 $defaultResourcePacks = @($manifest.files | Where-Object {
@@ -315,6 +422,7 @@ $receipt = [ordered]@{
     installed_at = (Get-Date).ToString('o')
     minecraft_directory = $MinecraftDirectory
     graphics_profile = $resolvedProfile
+    no_shader = $NoShader.IsPresent
     forge_installed = $forgeReady
     shader_installed = (Test-Path -LiteralPath (Join-Path $MinecraftDirectory 'shaderpacks\DMS 1.0.3.zip') -PathType Leaf)
     managed_files = @($managedFiles.ToArray())

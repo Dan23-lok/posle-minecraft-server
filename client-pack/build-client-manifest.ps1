@@ -157,7 +157,7 @@ foreach ($project in $visualVersions.Keys) {
 
 $manifest = [ordered]@{
     pack = ([char[]]@(0x041F, 0x041E, 0x0421, 0x041B, 0x0415) -join '')
-    pack_version = '2026.10.11.4'
+    pack_version = '2026.10.11.5'
     minecraft_version = '1.20.1'
     forge_version = '47.4.10'
     java_major = 17

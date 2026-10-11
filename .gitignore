@@ -3,6 +3,9 @@
 *.token
 *.log
 *.tmp
+__pycache__/
+*.py[cod]
+.pytest_cache/
 .env
 .env.*
 **/playit-secret.toml
@@ -25,6 +28,7 @@
 !server/authmod-source/gradle/wrapper/gradle-wrapper.jar
 *.zip
 !website/assets/POSLE-ClientInstaller.zip
+!website/assets/POSLE-ClientInstaller-v5.zip
 *.tar
 *.tar.gz
 site/
