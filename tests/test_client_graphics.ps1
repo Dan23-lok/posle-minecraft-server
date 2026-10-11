@@ -12,7 +12,8 @@ if ($parseErrors.Count -gt 0) { throw "Installer has PowerShell syntax errors." 
 foreach ($name in @('Get-ClientHardware', 'Get-AutoGraphicsProfile',
         'Resolve-GraphicsProfile',
         'Get-GraphicsPlan', 'Get-AllowedDownloadUri',
-        'Save-AllowedDownload', 'Update-KeyValueFile')) {
+        'Save-AllowedDownload', 'Update-KeyValueFile',
+        'Update-ResourcePackSelection')) {
     $functionAst = $ast.Find({
         param($node)
         $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
@@ -156,8 +157,8 @@ try {
 }
 
 # A normal rerun after -NoShader must reapply Oculus settings even when the
-# manifest version has not changed. Use a copied installer and an empty local
-# manifest so this regression test cannot download files or alter a real game.
+# manifest version has not changed. Use a copied installer and an existing
+# fixture file so this regression test cannot download files or alter a real game.
 $scratchParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $scratch = Join-Path $scratchParent ('posle-graphics-' + [Guid]::NewGuid().ToString('N'))
 $scratchFull = [IO.Path]::GetFullPath($scratch)
@@ -172,6 +173,10 @@ try {
     New-Item -ItemType Directory -Path $historicalDirectory -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\client-pack\historical\client-modpack-2026.10.11.4.json') `
         -Destination $historicalDirectory
+    $scratchClient = Join-Path $scratchFull 'client'
+    $fixtureMod = Join-Path $scratchClient 'mods\graphics-fixture.jar'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $fixtureMod) -Force | Out-Null
+    [IO.File]::WriteAllText($fixtureMod, 'graphics fixture')
     $testManifest = [ordered]@{
         pack = (Get-Content -LiteralPath (Join-Path $historicalDirectory 'client-modpack-2026.10.11.4.json') `
             -Raw -Encoding UTF8 | ConvertFrom-Json).pack
@@ -179,12 +184,17 @@ try {
         minecraft_version = '1.20.1'
         forge_version = '47.4.10'
         java_major = 17
+        java_runtime = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\client-pack\client-modpack.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json).java_runtime
         server_address = 'example.invalid'
-        files = @()
+        files = @([ordered]@{
+            project='graphics-fixture'; version='test'; filename='graphics-fixture.jar'
+            folder='mods'; url='https://cdn.modrinth.com/fixture/graphics-fixture.jar'
+            hash_algorithm='SHA256'; hash=(Get-FileHash -LiteralPath $fixtureMod -Algorithm SHA256).Hash
+        })
     }
     $testManifest | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath (Join-Path $scratchFull 'client-modpack.json') -Encoding UTF8
-    $scratchClient = Join-Path $scratchFull 'client'
     & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge -NoShader | Out-Null
     $oculusPath = Join-Path $scratchClient 'config\oculus.properties'
     $scratchReceipt = Join-Path $scratchClient 'horror-apocalypse-install.json'
@@ -270,6 +280,39 @@ try {
 } finally {
     if ([IO.File]::Exists($optionsPath)) { [IO.File]::Delete($optionsPath) }
     if ([IO.File]::Exists($backupPath)) { [IO.File]::Delete($backupPath) }
+}
+
+# UTF-8 without BOM is the format the installer writes. Keep non-ASCII player
+# settings intact when it updates graphics and resource-pack selection.
+$unicode = -join @([char]0x0442, [char]0x0443, [char]0x043C, [char]0x0430, [char]0x043D)
+$utf8NoBom = New-Object Text.UTF8Encoding($false)
+$optionsPath = [IO.Path]::GetTempFileName()
+$oculusPath = [IO.Path]::GetTempFileName()
+try {
+    [IO.File]::WriteAllLines($optionsPath,
+        @("customOption:$unicode", 'gamma:0.8', "resourcePacks:[`"vanilla`",`"file/$unicode.zip`"]"), $utf8NoBom)
+    [IO.File]::WriteAllLines($oculusPath,
+        @("customFog=$unicode", 'enableShaders=false'), $utf8NoBom)
+    $beforeBytes = [IO.File]::ReadAllBytes($optionsPath)
+    Assert-Equal $false ($beforeBytes[0] -eq 239 -and $beforeBytes[1] -eq 187 -and $beforeBytes[2] -eq 191) 'options fixture has no UTF-8 BOM'
+
+    Update-KeyValueFile -Path $optionsPath -Separator ':' -Values ([ordered]@{ gamma = '0.0' })
+    Update-KeyValueFile -Path $oculusPath -Separator '=' -Values ([ordered]@{ enableShaders = 'true' })
+    $optionLines = [IO.File]::ReadAllLines($optionsPath, [Text.Encoding]::UTF8)
+    $oculusLines = [IO.File]::ReadAllLines($oculusPath, [Text.Encoding]::UTF8)
+    Assert-Equal "customOption:$unicode" @($optionLines | Where-Object { $_ -like 'customOption:*' })[0] 'UTF-8 player option preserved'
+    Assert-Equal "customFog=$unicode" @($oculusLines | Where-Object { $_ -like 'customFog=*' })[0] 'UTF-8 Oculus option preserved'
+
+    Update-ResourcePackSelection -Path $optionsPath -RemoveIds @() -AddIds @('file/new.zip')
+    $resourceLine = @([IO.File]::ReadAllLines($optionsPath, [Text.Encoding]::UTF8) |
+        Where-Object { $_ -like 'resourcePacks:*' })[0]
+    $resourceIds = ConvertFrom-Json -InputObject $resourceLine.Substring('resourcePacks:'.Length)
+    Assert-Equal $true ($resourceIds -contains "file/$unicode.zip") 'UTF-8 resource-pack selection preserved'
+    Assert-Equal $true ($resourceIds -contains 'file/new.zip') 'new resource-pack selection added'
+} finally {
+    foreach ($path in @($optionsPath, $oculusPath, "$optionsPath.horror-backup", "$oculusPath.horror-backup")) {
+        if ([IO.File]::Exists($path)) { [IO.File]::Delete($path) }
+    }
 }
 
 Write-Output 'Client graphics tests passed.'

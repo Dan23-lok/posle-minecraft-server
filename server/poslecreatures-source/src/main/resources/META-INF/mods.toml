@@ -1,0 +1,28 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+[[mods]]
+modId="poslecreatures"
+version="0.1.0-rc5"
+displayName="POSLE Creature Behavior (review candidate)"
+displayTest="IGNORE_SERVER_VERSION"
+authors="POSLE project"
+description="Smaller spiders and immediate close-range vanilla creeper explosions."
+[[dependencies.poslecreatures]]
+modId="forge"
+mandatory=true
+versionRange="[47.4.10,)"
+ordering="NONE"
+side="SERVER"
+[[dependencies.poslecreatures]]
+modId="pehkui"
+mandatory=true
+versionRange="[3.8.2,)"
+ordering="NONE"
+side="SERVER"
+[[dependencies.poslecreatures]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1]"
+ordering="NONE"
+side="SERVER"

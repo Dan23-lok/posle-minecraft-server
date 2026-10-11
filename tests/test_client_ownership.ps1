@@ -57,11 +57,12 @@ function Get-VerifiedFile {
     Remove-Item -LiteralPath $createdPath -Force
     $realManifest = Get-Content -LiteralPath (Join-Path $repoClient 'client-modpack.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $files = @(
-        [ordered]@{ folder='mods'; filename='preexisting.jar'; hash_algorithm='SHA256'; hash=$preexistingHash },
-        [ordered]@{ folder='mods'; filename='created.jar'; hash_algorithm='SHA256'; hash=$createdHash }
+        [ordered]@{ folder='mods'; filename='preexisting.jar'; url='https://cdn.modrinth.com/fixture/preexisting.jar'; hash_algorithm='SHA256'; hash=$preexistingHash },
+        [ordered]@{ folder='mods'; filename='created.jar'; url='https://cdn.modrinth.com/fixture/created.jar'; hash_algorithm='SHA256'; hash=$createdHash }
     )
     $fixtureManifest = [ordered]@{ pack=$realManifest.pack; pack_version='test-ownership';
         minecraft_version='1.20.1'; forge_version='47.4.10'; java_major=17;
+        java_runtime=$realManifest.java_runtime;
         server_address='example.invalid'; files=$files }
     $fixtureManifest | ConvertTo-Json -Depth 6 |
         Set-Content -LiteralPath (Join-Path $package 'client-modpack.json') -Encoding UTF8
@@ -96,8 +97,10 @@ function Get-VerifiedFile {
     $legacyReceipt = [ordered]@{ pack=$realManifest.pack; pack_version='2026.10.11.5';
         minecraft_version='1.20.1'; forge_version='47.4.10'; minecraft_directory=$legacyClient;
         managed_files=@($files[0]) }
-    $legacyReceipt | ConvertTo-Json -Depth 6 |
-        Set-Content -LiteralPath (Join-Path $legacyClient 'horror-apocalypse-install.json') -Encoding UTF8
+    # The owner's published v5 receipt is UTF-8 without a BOM. Windows PowerShell
+    # 5.1 defaults to the local code page unless the installer opts into UTF-8.
+    [IO.File]::WriteAllText((Join-Path $legacyClient 'horror-apocalypse-install.json'),
+        ($legacyReceipt | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($false)))
     & $installer -MinecraftDirectory $legacyClient -SkipForge | Out-Null
     $legacyAfter = Get-Content -LiteralPath (Join-Path $legacyClient 'horror-apocalypse-install.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True (@($legacyAfter.managed_files | Where-Object filename -eq 'preexisting.jar')[0].created_by_posle -eq $false) 'legacy unknown ownership was promoted to owned'

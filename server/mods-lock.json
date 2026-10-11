@@ -3,7 +3,7 @@
   "minecraft": "1.20.1",
   "loader": "Forge",
   "loader_version": "47.4.10",
-  "note": "Verified Forge 1.20.1 server mod inventory. URLs point to original project files; JARs and authentication secrets are not included.",
+  "note": "Current production has 22 JARs, including AuthMod 1.5.2-codex8-staging, Pehkui, and server-only POSLE Creature Behavior RC5. The filename suffix staging is retained for the verified AuthMod build that is deployed. The production Spooki config disables frost, lightning, magma, and wither creepers; one previously saved lightning creeper was removed after a cold backup and isolated startup check. Mutant Monsters and Puzzles Lib remain excluded because isolated testing found unsafe terrain damage. URLs point to original project files; JARs and authentication secrets are not included. This manifest does not certify untested gameplay or owner TLauncher launch.",
   "mods": [
     {
       "name": "Atlas Lib",
@@ -18,13 +18,13 @@
     },
     {
       "name": "Auth Mod (local custom build)",
-      "version": "1.5.1-codex4",
-      "filename": "authmod-1.5.1-codex4.jar",
+      "version": "1.5.2-codex8-staging",
+      "filename": "authmod-1.5.2-codex8-staging.jar",
       "client_side": "unsupported",
       "server_side": "required",
       "official_url": null,
       "download_url": null,
-      "sha512": "275947b126d6e284db5d1f542fedde156e0bfc0e295db986aeb4676cd4b36c44235434ac78a811be41d3041355f5a215bd18e8e97a462342d434b49c94d872ba",
+      "sha512": "81e6151dbafd7545beefc776c26757fe699731a72a975b9a4417ab0e892c6ce28d0df2ab499cf6436821a273371bd7773ba393ec5dea97205a017f9a52383c86",
       "source": "local_custom_build"
     },
     {
@@ -224,6 +224,28 @@
       "download_url": "https://cdn.modrinth.com/data/QDJiv6Nj/versions/nbqfdVPx/spookis-unique-mobs-0.9.1%2B1.20.1%2Bforge.jar",
       "sha512": "bf0701d71938f0449c3ddc0763f5ba32b7262a2ae73314a3b8e8ef4cebc593816c8bd9208306801d5c2a24d4b44c9465e29e30c39f7988221b78e4d851de2686",
       "source": "modrinth"
+    },
+    {
+      "name": "Pehkui",
+      "version": "3.8.2+1.20.1-forge",
+      "filename": "Pehkui-3.8.2+1.20.1-forge.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/pehkui/version/SQpqSgAE",
+      "download_url": "https://cdn.modrinth.com/data/t5W7Jfwy/versions/SQpqSgAE/Pehkui-3.8.2%2B1.20.1-forge.jar",
+      "sha512": "e4660f0b5af6bfe2902ab39a6fbfa911856e0567bffc47842b482731da373afa4424b9e7cf47c61a0c2107445520475053709a6671d9eb4b7f4b55597729af3f",
+      "source": "modrinth"
+    },
+    {
+      "name": "POSLE Creature Behavior (local custom build)",
+      "version": "0.1.0-rc5",
+      "filename": "poslecreatures-forge-47.4.10-0.1.0-rc5.jar",
+      "client_side": "unsupported",
+      "server_side": "required",
+      "official_url": null,
+      "download_url": null,
+      "sha512": "45cd71774a6566da18acb3433d53fd840e4c37fdc1f31143ea9d9c7825ebd65d607b28ec03abfbe6a1e32574d42aab4b07f4a09cd10d6e7b249c2db508bfbc1d",
+      "source": "local_custom_build"
     }
   ]
 }

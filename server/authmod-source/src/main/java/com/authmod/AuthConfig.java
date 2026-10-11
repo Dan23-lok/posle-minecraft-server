@@ -18,12 +18,14 @@ public final class AuthConfig {
     private static final ForgeConfigSpec.IntValue LOGIN_TIMEOUT_SECONDS;
     private static final ForgeConfigSpec.IntValue LOCKOUT_SECONDS;
     private static final ForgeConfigSpec.ConfigValue<String> LANGUAGE;
+    private static final ForgeConfigSpec.ConfigValue<String> OWNER_USERNAME;
 
     private static int minPasswordLength = 12;
     private static int maxLoginAttempts = 5;
     private static int loginTimeoutSeconds = 300;
     private static int lockoutSeconds = 60;
     private static String language = "auto";
+    private static String ownerUsername = "";
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
@@ -34,10 +36,12 @@ public final class AuthConfig {
                 .defineInRange("maxLoginAttempts", 5, 1, 100);
         LOGIN_TIMEOUT_SECONDS = builder.comment("Seconds allowed to use /login or /register after joining")
                 .defineInRange("loginTimeoutSeconds", 300, 30, 3600);
-        LOCKOUT_SECONDS = builder.comment("Lockout duration in seconds after too many failed attempts")
+        LOCKOUT_SECONDS = builder.comment("Per-connection fifth-failure cooldown and maximum retry delay in seconds (legacy key name)")
                 .defineInRange("lockoutSeconds", 60, 1, 3600);
         LANGUAGE = builder.comment("Message language: auto (client language), ru or en")
                 .define("language", "auto");
+        OWNER_USERNAME = builder.comment("Exact-case owner Minecraft nickname for /owner. Empty disables temporary owner commands. Keep this server-only.")
+                .define("ownerUsername", "");
         builder.pop();
         SPEC = builder.build();
     }
@@ -61,6 +65,7 @@ public final class AuthConfig {
         loginTimeoutSeconds = LOGIN_TIMEOUT_SECONDS.get();
         lockoutSeconds = LOCKOUT_SECONDS.get();
         language = LANGUAGE.get();
+        ownerUsername = OWNER_USERNAME.get();
     }
 
     public static int minPasswordLength() {
@@ -81,5 +86,9 @@ public final class AuthConfig {
 
     public static String language() {
         return language;
+    }
+
+    public static String ownerUsername() {
+        return ownerUsername;
     }
 }

@@ -7,6 +7,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
@@ -50,6 +51,14 @@ public class AuthCommands {
                                 player.sendSystemMessage(Lang.msg(player, "authmod.password.too_short", AuthConfig.minPasswordLength()));
                                 return 0;
                             }
+                            if (!PasswordPolicy.withinNewPasswordLength(password)) {
+                                player.sendSystemMessage(Lang.msg(player, "authmod.password.too_long", PasswordPolicy.MAX_NEW_LENGTH));
+                                return 0;
+                            }
+                            if (!PasswordPolicy.fitsRegisterCommand(password, inviteCode)) {
+                                player.sendSystemMessage(Lang.msg(player, "authmod.password.too_long", PasswordPolicy.maxRegistrationPasswordLength(inviteCode)));
+                                return 0;
+                            }
 
                             if (!InviteCode.verify(inviteCode)) {
                                 player.sendSystemMessage(Lang.msg(player, "authmod.register.wrong_invite"));
@@ -86,34 +95,52 @@ public class AuthCommands {
                             String password = StringArgumentType.getString(context, "password");
                             String username = player.getGameProfile().getName().toLowerCase(Locale.ROOT);
 
+                            if (!PasswordPolicy.withinMaxLength(password)) {
+                                player.sendSystemMessage(Lang.msg(player, "authmod.password.too_long", PasswordPolicy.MAX_LENGTH));
+                                return 0;
+                            }
+
                             if (!AuthData.isRegistered(username)) {
                                 player.sendSystemMessage(Lang.msg(player, "authmod.login.not_registered"));
                                 player.sendSystemMessage(Lang.msg(player, "authmod.login.hint_register"));
                                 return 0;
                             }
 
-                            if (LoginLimiter.isLocked(username)) {
+                            if (LoginLimiter.isLocked(player.connection)) {
                                 player.sendSystemMessage(Lang.msg(player, "authmod.limiter.too_many_attempts"));
-                                player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", LoginLimiter.remainingSeconds(username)));
+                                player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", LoginLimiter.remainingSeconds(player.connection)));
+                                return 0;
+                            }
+
+                            long retryDelay = LoginLimiter.remainingSeconds(player.connection);
+                            if (retryDelay > 0) {
+                                player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", retryDelay));
                                 return 0;
                             }
 
                             if (AuthEventHandler.loginPlayer(player, password)) {
-                                LoginLimiter.reset(username);
+                                LoginLimiter.reset(player.connection);
                                 player.sendSystemMessage(Lang.msg(player, "authmod.login.success"));
                                 player.sendSystemMessage(Lang.msg(player, "authmod.login.welcome"));
                                 return 1;
                             } else {
-                                LoginLimiter.recordFailure(username);
-                                if (LoginLimiter.isLocked(username)) {
+                                LoginLimiter.recordFailure(player.connection);
+                                if (LoginLimiter.isLocked(player.connection)) {
                                     player.connection.disconnect(Lang.msg(player, "authmod.limiter.kicked"));
                                 } else {
                                     player.sendSystemMessage(Lang.msg(player, "authmod.login.wrong_password"));
+                                    player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", LoginLimiter.remainingSeconds(player.connection)));
                                 }
                                 return 0;
                             }
                         })
                 )
+        );
+
+        // No persistent OP entry is needed. The elevated source exists for this one command only.
+        dispatcher.register(Commands.literal("owner")
+                .then(Commands.argument("command", StringArgumentType.greedyString())
+                        .executes(AuthCommands::ownerCommand))
         );
 
         // Смена собственного пароля игроком
@@ -161,6 +188,19 @@ public class AuthCommands {
         String oldPassword = StringArgumentType.getString(context, "oldPassword");
         String newPassword = StringArgumentType.getString(context, "newPassword");
 
+        if (!PasswordPolicy.withinMaxLength(oldPassword)) {
+            player.sendSystemMessage(Lang.msg(player, "authmod.password.too_long", PasswordPolicy.MAX_LENGTH));
+            return 0;
+        }
+        if (!PasswordPolicy.withinNewPasswordLength(newPassword)) {
+            player.sendSystemMessage(Lang.msg(player, "authmod.password.too_long", PasswordPolicy.MAX_NEW_LENGTH));
+            return 0;
+        }
+        if (!PasswordPolicy.fitsChangeCommand(oldPassword, newPassword)) {
+            player.sendSystemMessage(Lang.msg(player, "authmod.password.too_long", PasswordPolicy.maxChangePasswordLength(oldPassword)));
+            return 0;
+        }
+
         if (!AuthData.verifyPassword(username, oldPassword)) {
             player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.wrong_old"));
             return 0;
@@ -178,10 +218,28 @@ public class AuthCommands {
         return 1;
     }
 
+    private static int ownerCommand(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        String command = StringArgumentType.getString(context, "command");
+        if (!OwnerCommandPolicy.permits(AuthConfig.ownerUsername(), player.getGameProfile().getName(),
+                AuthEventHandler.isAuthenticated(player), command)) {
+            player.sendSystemMessage(Component.literal("Owner command unavailable."));
+            return 0;
+        }
+        // Do not log command contents: arguments may include private world coordinates.
+        return player.server.getCommands().performPrefixedCommand(
+                player.createCommandSourceStack().withPermission(4), command);
+    }
+
     /** /authmod changepassword <player> <newPassword> — работает и с офлайн-игроками. */
     private static int adminChangePassword(CommandContext<CommandSourceStack> context) {
         String target = StringArgumentType.getString(context, "player").toLowerCase(Locale.ROOT);
         String newPassword = StringArgumentType.getString(context, "newPassword");
+
+        if (!PasswordPolicy.withinNewPasswordLength(newPassword)) {
+            reply(context.getSource(), "authmod.password.too_long", PasswordPolicy.MAX_NEW_LENGTH);
+            return 0;
+        }
 
         if (!AuthData.isRegistered(target)) {
             reply(context.getSource(), "authmod.admin.player_not_registered", target);

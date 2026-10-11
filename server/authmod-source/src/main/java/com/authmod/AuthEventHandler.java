@@ -66,6 +66,7 @@ public class AuthEventHandler {
     public static void onPlayerQuit(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             sessions.leave(player.getUUID(), player);
+            LoginLimiter.reset(player.connection);
             lastPosition.remove(player);
             previousGameMode.remove(player);
             greetedLocale.remove(player);
@@ -281,9 +282,8 @@ public class AuthEventHandler {
 
     /** Повторная блокировка онлайн-игрока (например, после сброса пароля админом). */
     public static void forceRelock(ServerPlayer player) {
-        String username = player.getGameProfile().getName().toLowerCase(Locale.ROOT);
         sessions.relock(player.getUUID(), player);
-        LoginLimiter.reset(username);
+        LoginLimiter.reset(player.connection);
         loginDeadlines.put(player, loginDeadline());
         lastPosition.put(player, new double[]{player.getX(), player.getY(), player.getZ()});
         lockPlayer(player);

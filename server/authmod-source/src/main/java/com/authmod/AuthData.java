@@ -74,6 +74,9 @@ public final class AuthData {
     }
 
     public static void setPlayerPassword(String username, String password) {
+        if (!PasswordPolicy.withinNewPasswordLength(password)) {
+            throw new IllegalArgumentException("New password exceeds usable command length");
+        }
         playerPasswords.put(username.toLowerCase(), PasswordHasher.hash(password));
     }
 
@@ -82,11 +85,13 @@ public final class AuthData {
      * переводятся в новый формат при первом успешном входе.
      */
     public static boolean verifyPassword(String username, String password) {
+        if (!PasswordPolicy.withinMaxLength(password)) return false;
         String stored = getStoredPassword(username);
         if (stored == null) return false;
         if (PasswordHasher.isLegacy(stored)) {
             if (!stored.equals(password)) return false;
-            setPlayerPassword(username, password);
+            // A legacy password may exceed the bound for newly chosen passwords.
+            playerPasswords.put(username.toLowerCase(), PasswordHasher.hash(password));
             save();
             return true;
         }
