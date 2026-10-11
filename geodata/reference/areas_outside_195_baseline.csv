@@ -1,0 +1,55 @@
+code,name_en,name_ru,catalog_kind,source_line,listed_in_registry,geometry_loaded,terrain_generated,spawn_validated
+AW,Aruba,Аруба,iso_area_outside_195,1303,true,false,false,false
+AI,Anguilla,Ангилья,iso_area_outside_195,1304,true,false,false,false
+AX,Åland Islands,Аландские о-ва,iso_area_outside_195,1305,true,false,false,false
+AS,American Samoa,Американское Самоа,iso_area_outside_195,1306,true,false,false,false
+AQ,Antarctica,Антарктида,iso_area_outside_195,1307,true,false,false,false
+TF,French Southern Territories,Французские Южные территории,iso_area_outside_195,1308,true,false,false,false
+BQ,Caribbean Netherlands,"Бонэйр, Синт-Эстатиус и Саба",iso_area_outside_195,1309,true,false,false,false
+BL,St. Barthélemy,Сен-Бартелеми,iso_area_outside_195,1310,true,false,false,false
+BM,Bermuda,Бермудские о-ва,iso_area_outside_195,1311,true,false,false,false
+BV,Bouvet Island,о-в Буве,iso_area_outside_195,1312,true,false,false,false
+CC,Cocos (Keeling) Islands,Кокосовые о-ва,iso_area_outside_195,1313,true,false,false,false
+CK,Cook Islands,о-ва Кука,iso_area_outside_195,1314,true,false,false,false
+CW,Curaçao,Кюрасао,iso_area_outside_195,1315,true,false,false,false
+CX,Christmas Island,о-в Рождества,iso_area_outside_195,1316,true,false,false,false
+KY,Cayman Islands,о-ва Кайман,iso_area_outside_195,1317,true,false,false,false
+EH,Western Sahara,Западная Сахара,iso_area_outside_195,1318,true,false,false,false
+FK,Falkland Islands,Фолклендские о-ва,iso_area_outside_195,1319,true,false,false,false
+FO,Faroe Islands,Фарерские о-ва,iso_area_outside_195,1320,true,false,false,false
+GG,Guernsey,Гернси,iso_area_outside_195,1321,true,false,false,false
+GI,Gibraltar,Гибралтар,iso_area_outside_195,1322,true,false,false,false
+GP,Guadeloupe,Гваделупа,iso_area_outside_195,1323,true,false,false,false
+GL,Greenland,Гренландия,iso_area_outside_195,1324,true,false,false,false
+GF,French Guiana,Французская Гвиана,iso_area_outside_195,1325,true,false,false,false
+GU,Guam,Гуам,iso_area_outside_195,1326,true,false,false,false
+HK,Hong Kong SAR China,Гонконг (САР),iso_area_outside_195,1327,true,false,false,false
+HM,Heard & McDonald Islands,о-ва Херд и Макдональд,iso_area_outside_195,1328,true,false,false,false
+IM,Isle of Man,о-в Мэн,iso_area_outside_195,1329,true,false,false,false
+IO,British Indian Ocean Territory,Британская территория в Индийском океане,iso_area_outside_195,1330,true,false,false,false
+JE,Jersey,Джерси,iso_area_outside_195,1331,true,false,false,false
+MO,Macao SAR China,Макао (САР),iso_area_outside_195,1332,true,false,false,false
+MF,St. Martin,Сен-Мартен,iso_area_outside_195,1333,true,false,false,false
+MP,Northern Mariana Islands,Северные Марианские о-ва,iso_area_outside_195,1334,true,false,false,false
+MS,Montserrat,Монтсеррат,iso_area_outside_195,1335,true,false,false,false
+MQ,Martinique,Мартиника,iso_area_outside_195,1336,true,false,false,false
+YT,Mayotte,Майотта,iso_area_outside_195,1337,true,false,false,false
+NC,New Caledonia,Новая Каледония,iso_area_outside_195,1338,true,false,false,false
+NF,Norfolk Island,о-в Норфолк,iso_area_outside_195,1339,true,false,false,false
+NU,Niue,Ниуэ,iso_area_outside_195,1340,true,false,false,false
+PN,Pitcairn Islands,о-ва Питкэрн,iso_area_outside_195,1341,true,false,false,false
+PR,Puerto Rico,Пуэрто-Рико,iso_area_outside_195,1342,true,false,false,false
+PF,French Polynesia,Французская Полинезия,iso_area_outside_195,1343,true,false,false,false
+RE,Réunion,Реюньон,iso_area_outside_195,1344,true,false,false,false
+GS,South Georgia & South Sandwich Islands,Южная Георгия и Южные Сандвичевы о-ва,iso_area_outside_195,1345,true,false,false,false
+SH,St. Helena,о-в Св. Елены,iso_area_outside_195,1346,true,false,false,false
+SJ,Svalbard & Jan Mayen,Шпицберген и Ян-Майен,iso_area_outside_195,1347,true,false,false,false
+PM,St. Pierre & Miquelon,Сен-Пьер и Микелон,iso_area_outside_195,1348,true,false,false,false
+SX,Sint Maarten,Синт-Мартен,iso_area_outside_195,1349,true,false,false,false
+TC,Turks & Caicos Islands,Тёркс и Кайкос,iso_area_outside_195,1350,true,false,false,false
+TK,Tokelau,Токелау,iso_area_outside_195,1351,true,false,false,false
+TW,Taiwan,Тайвань,iso_area_outside_195,1352,true,false,false,false
+UM,U.S. Outlying Islands,Внешние малые о-ва (США),iso_area_outside_195,1353,true,false,false,false
+VG,British Virgin Islands,Виргинские о-ва (Великобритания),iso_area_outside_195,1354,true,false,false,false
+VI,U.S. Virgin Islands,Виргинские о-ва (США),iso_area_outside_195,1355,true,false,false,false
+WF,Wallis & Futuna,Уоллис и Футуна,iso_area_outside_195,1356,true,false,false,false

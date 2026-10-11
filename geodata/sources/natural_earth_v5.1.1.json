@@ -1,0 +1,21 @@
+{
+  "files": {
+    "ne_10m_admin_0_countries.geojson": {
+      "bytes": 13287234,
+      "sha256": "239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255",
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_10m_admin_0_countries.geojson"
+    },
+    "ne_10m_land.geojson": {
+      "bytes": 10157965,
+      "sha256": "1ac90796408bc6ad6911d69448485d3c4dbf2190370080368a09976e1c9f7416",
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_10m_land.geojson"
+    }
+  },
+  "license": "public domain",
+  "provider": "Natural Earth",
+  "release_url": "https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.1",
+  "retrieved_at_utc": "2026-10-11T02:25:15.763477+00:00",
+  "scope": "Generalized Earth land/country polygons; no structures, terrain heights, or game coverage.",
+  "terms_url": "https://www.naturalearthdata.com/about/terms-of-use/",
+  "version": "5.1.1"
+}

@@ -1,0 +1,83 @@
+id,description,section_refs,owner,status,evidence,blocker,source_sha256
+R001,Finish/checkpoint current work before this new assignment,"01-02, 29",lead,BLOCKED,Previous migration checkpoint verified; redundant archive retained,Automatic review rejected permanent recursive deletion,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R002,"Work autonomously through the owner's overnight absence within actual execution/permission limits, without routine questions","01, 03-04",lead,IN PROGRESS,Work continues in the main project without changing the separate test server,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R003,"Act as programmer, designer, builder, manager, and administrator","01, 03",lead,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R004,Create specialist teams and independent critical review,03-04,lead,IN PROGRESS,"Independent server, geography, client/site and security reviews performed",,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R005,"Use GitHub, useful original workflows, and persistent work records","03, 29",lead,IN PROGRESS,Existing public repository cloned; source manifests and project rules prepared locally,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R006,Consult this ChatGPT thread only through a real authorized capability,04,lead,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R007,"Audit existing D: paths, world, client, repository, and launcher","02, 05",lead,IN PROGRESS,"Main world, server mods, TLauncher instance and public site inventoried",,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R008,"Choose a compatible stable version, not blindly the newest",05,lead,RESEARCHING,Forge 1.20.1 baseline verified; final whole-pack compatibility undecided,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R009,Find existing detailed internet content before creating it,"05, 11, 15, 21",lead,IN PROGRESS,"Original GeoNames, Natural Earth and Tellus sources inspected before custom geography work",,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R010,"Real Earth geography, continents, coastlines, islands, all countries","06, 08",geography,IN PROGRESS,195 reference entries joined to Natural Earth polygons; 0 live Earth sectors verified,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R011,"Russia, America, Brazil, France, Armenia, and more than those examples","06, 10",geography,IN PROGRESS,"Russia, US, France and Armenia represented in source catalogues; no playable Earth regions verified",,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R012,Recognizable cities and near-real regional reconstruction,"06, 10-11",geography,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R013,"Huge varied mountains, multiple purposeful materials and shapes",07,geography,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R014,Everest and coherent surrounding Himalayan terrain,07,geography,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R015,"Rivers, waterfalls, lakes, dams, deserts, forests, and other biomes",08-09,geography,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R016,Detailed natural caves and useful partial-block/model detail,07-08,geography,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R017,No repetitive symmetric mountains or uniform single-block slopes,07,geography,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R018,"Realistic trees, branches, species, felling, and resource gathering",09,architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R019,"Large buildings on suitable terrain, not arbitrary steep mountains",10,architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R020,Regional climate/material/foundation matching and seamless placement,"08, 10",architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R021,Broad real-world residential/public/commercial/industrial catalogue,11,architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R022,Power/nuclear/water/communications/server and utility infrastructure,11,architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R023,"Roads, signs, bridges, tunnels, rail, airports, ports, and logical links",13,architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R024,Detailed interiors instead of empty building shells,11-12,architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R025,"Real decay, rot, collapse, moss, plants, and suitable reeds","09, 12",architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R026,No unsupported floating blocks before or after damage,"09, 12, 17, 30",architecture,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R027,Genuine horror rather than ordinary vanilla survival styling,14-17,horror_art,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R028,Correctly installed AND enabled shaders/resource packs,"05, 14, 25",horror_art,IN PROGRESS,Existing TLauncher instance has enabled DMS/Oculus and resource packs; new visual acceptance untested,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R029,Very dark nights and useful torch/flashlight lighting,14,horror_art,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R030,Beautiful or unsettling daytime according to biome/weather,14,horror_art,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R031,"Weather, fog, cave darkness, and consistent audiovisual atmosphere","14, 22",horror_art,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R032,"Redesign every retained vanilla mob, plus other horror creatures",15,horror_art,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R033,Distinct creature animations and improved player presentation,"15, 21",horror_art,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R034,Smaller spiders with matching actual hitboxes,15,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R035,"Zombie variants, boss zombies, and poison attacks",15,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R036,Skeleton redesign and suitable threatening behavior,15,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R037,"Fast creepers, near-one-block immediate blast, varied strength",15,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R038,"Detailed working weapons, animations, and multiplayer combat",16,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R039,"Realistic usable aircraft and helicopters, not props only",16,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R040,Persistent day-by-day difficulty and world destruction,17,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R041,"Tsunamis, avalanches, volcanoes, meteors, fissures and related events",17,gameplay,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R042,"One preserved canonical Earth, safe rebuild if current map fails","06, 28",geography,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R043,Attractive inaccessible protected cloud lobby,"18, 20",accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R044,Registration/login before survival access,18-19,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R045,Country choice with a RANDOM safe point inside that country,18,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R046,"Skin step after the spawn/country flow, with persistent selection","18, 21",accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R047,Private account management on the server disk,19,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R048,"Secure recovery, kick intruder, restore owner, evidence-based bans",19-20,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R049,No plaintext password archive; private hashes and recovery instead,19,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R050,"Owner's full admin access, no ordinary player creative/admin powers",20,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R051,Restricted commands without breaking normal menus/chat,20,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R052,Anti-cheat/anti-abuse compatible with the modpack,20,accounts_security,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R053,Preserve personal skins and allow custom URL imports,21,player_appearance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R054,Detailed curated adult male/female and military/survivor skins,21,player_appearance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R055,Fully clothed adult female 3D chest detail and controlled physics,21,player_appearance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R056,"Unlimited skin changes, no obsolete five-change rule",21,player_appearance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R057,"Occupied skin unavailable to another account, including races/offline",21,player_appearance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R058,Coherent skin adaptation without destroying the original,21,player_appearance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R059,Clear voice chat with cave echo and verified network setup,22,audio_voice,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R060,"Small player profiles, optional flags, public data only",23,social,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R061,"Friends, consent-based team invitations, plus/minus or rebound UI",23,social,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R062,"Leaving teams, persistent clans, building and taking towns",23,social,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R063,"Forty curated team flags, chosen once until group deletion",23,social,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R064,Minimalist attractive published site with a real GitHub link,24,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R065,"Accurate world image, no nonsensical roads/dams/water",24,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R066,"Interactive actual world map, no player positions or telemetry",24,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R067,No owner address/private origin details in the public site,"24, 28",distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R068,Short installation instructions and real support communication,"24, 26",distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R069,Download/Play installs the right files in the right managed instance,25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R070,Working actual TLauncher profile and automated supported launch,25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R071,"Updates, repair, rollback, and clean installation validation",25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R072,Website/local uninstall removes only this project's owned files,25,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R073,"Genuine reviews as low priority, no fabricated testimonials",26,distribution,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R074,"Optimize clients across PCs, automatic appropriate settings",27,performance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R075,"Stable best-practical FPS with measured results, not universal promises",27,performance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R076,Server tick/memory/load optimization and bounded generation,"17, 27-28",performance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R077,Install necessary official tools without unrelated/security changes,05,lead,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R078,"Whole-world/sector inspection, visual fly-through, defect repair",30,quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R079,Keep correcting and regression-testing instead of moving past defects,"01, 30",quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R080,"Backups, safe world switching, source privacy, tested restoration",28,operations,RESEARCHING,Backup exists; independent restore test pending,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R081,Evidence-backed acceptance before a finished-release claim,31-32,quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
+R082,Record unresolved scope honestly; do not hide missing work,"01, 30-32",quality_assurance,NOT STARTED,,,b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc
