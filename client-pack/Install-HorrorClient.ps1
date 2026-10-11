@@ -16,7 +16,7 @@ $manifestPath = Join-Path $PSScriptRoot 'client-modpack.json'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw 'client-modpack.json is missing beside this script.'
 }
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($manifest.minecraft_version -ne '1.20.1' -or $manifest.forge_version -ne '47.4.10' -or $manifest.java_major -ne 17) {
     throw 'Unexpected Minecraft, Forge, or Java version in manifest.'
 }
@@ -31,6 +31,15 @@ $previousReceipt = if ($previousInstall) {
 $allowedHosts = @('cdn.modrinth.com', 'www.curseforge.com', 'edge.forgecdn.net', 'mediafilez.forgecdn.net',
     'maven.minecraftforge.net', 'corretto.aws')
 $allowedFolders = @('mods', 'shaderpacks', 'resourcepacks')
+$historicalPath = Join-Path $PSScriptRoot 'historical\client-modpack-2026.10.11.4.json'
+if (-not (Test-Path -LiteralPath $historicalPath -PathType Leaf)) {
+    throw 'The pinned historical client manifest is missing beside this script.'
+}
+$historicalManifest = Get-Content -LiteralPath $historicalPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($historicalManifest.pack -ne $manifest.pack -or
+    $historicalManifest.pack_version -ne '2026.10.11.4') {
+    throw 'The pinned historical client manifest has an unexpected identity.'
+}
 
 function Test-ValidFileName {
     param([string]$Name)
@@ -54,6 +63,22 @@ function Get-AllowedDownloadUri {
         throw "Untrusted download URL: $Uri"
     }
     return $Uri
+}
+
+function Assert-NoReparsePoint {
+    param([string]$Path)
+    $current = [IO.Path]::GetFullPath($Path)
+    while ($current) {
+        if (Test-Path -LiteralPath $current) {
+            $item = Get-Item -LiteralPath $current -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Refusing to use a symlink or junction: $current"
+            }
+        }
+        $parent = [IO.Path]::GetDirectoryName($current.TrimEnd('\', '/'))
+        if (-not $parent -or $parent -eq $current) { break }
+        $current = $parent
+    }
 }
 
 function Save-AllowedDownload {
@@ -277,6 +302,54 @@ function Update-ResourcePackSelection {
     Update-KeyValueFile -Path $Path -Separator ':' -Values ([ordered]@{ resourcePacks = $value })
 }
 
+# Current and previously published manifests are the only file identities the
+# installer may claim in a receipt or remove during an update.
+$knownFiles = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($knownManifest in @($manifest, $historicalManifest)) {
+    foreach ($known in @($knownManifest.files)) {
+        if ($known.folder -notin $allowedFolders -or
+            -not (Test-ValidFileName -Name $known.filename) -or
+            $known.hash_algorithm -notin @('SHA256', 'SHA512') -or
+            $known.hash -notmatch '^[0-9A-Fa-f]+$') {
+            throw 'A pinned client manifest contains an unsafe file entry.'
+        }
+        $expectedLength = if ($known.hash_algorithm -eq 'SHA256') { 64 } else { 128 }
+        if ($known.hash.Length -ne $expectedLength) {
+            throw 'A pinned client manifest contains an invalid hash.'
+        }
+        $knownFiles.Add("$($known.folder)`0$($known.filename)`0$($known.hash_algorithm)`0$($known.hash)") | Out-Null
+    }
+}
+$previousOwnership = @{}
+if ($previousReceipt) {
+    if ($previousReceipt.pack -ne $manifest.pack -or
+        $previousReceipt.minecraft_directory -isnot [string] -or
+        -not [IO.Path]::IsPathRooted($previousReceipt.minecraft_directory) -or
+        -not [IO.Path]::GetFullPath($previousReceipt.minecraft_directory).Equals(
+            $MinecraftDirectory, [StringComparison]::OrdinalIgnoreCase) -or
+        $null -eq $previousReceipt.managed_files) {
+        throw 'The previous installation receipt has an unexpected identity.'
+    }
+    foreach ($old in @($previousReceipt.managed_files)) {
+        if ($old.folder -notin $allowedFolders -or
+            -not (Test-ValidFileName -Name $old.filename) -or
+            $old.hash_algorithm -notin @('SHA256', 'SHA512') -or
+            $old.hash -notmatch '^[0-9A-Fa-f]+$') {
+            throw 'The previous installation receipt contains an unsafe file entry.'
+        }
+        $key = "$($old.folder)`0$($old.filename)`0$($old.hash_algorithm)`0$($old.hash)"
+        if (-not $knownFiles.Contains($key) -or $previousOwnership.ContainsKey($key)) {
+            throw 'The previous installation receipt has an unknown or duplicate file identity.'
+        }
+        $ownershipProperty = $old.PSObject.Properties['created_by_posle']
+        if ($null -ne $ownershipProperty -and $ownershipProperty.Value -isnot [bool]) {
+            throw 'The previous installation receipt has an invalid ownership flag.'
+        }
+        # The published v5 receipt lacks this field. Its ownership is unknown.
+        $previousOwnership[$key] = ($old.created_by_posle -ceq $true)
+    }
+}
+
 $hardware = Get-ClientHardware
 $resolvedProfile = Resolve-GraphicsProfile -RequestedProfile $GraphicsProfile -PreviousReceipt $previousReceipt `
     -Hardware $hardware -ExplicitChoice:($PSBoundParameters.ContainsKey('GraphicsProfile'))
@@ -289,6 +362,8 @@ foreach ($entry in @($manifest.files)) {
     if ($NoShader -and $entry.folder -eq 'shaderpacks') { continue }
     if ($NoResourcePack -and $entry.folder -eq 'resourcepacks') { continue }
     $destination = Join-Path (Join-Path $MinecraftDirectory $entry.folder) $entry.filename
+    Assert-NoReparsePoint -Path $destination
+    $existedBefore = Test-Path -LiteralPath $destination -PathType Leaf
     Get-VerifiedFile -Url $entry.url -Destination $destination -Algorithm $entry.hash_algorithm -Expected $entry.hash
     $relativePath = "$($entry.folder)/$($entry.filename)"
     $targetPaths[$relativePath] = $true
@@ -298,17 +373,16 @@ foreach ($entry in @($manifest.files)) {
         hash_algorithm = $entry.hash_algorithm
         hash = $entry.hash
         default_enabled = ($entry.folder -eq 'resourcepacks' -and $entry.default_enabled -eq $true)
+        created_by_posle = ((-not $existedBefore) -or
+            ($previousOwnership["$($entry.folder)`0$($entry.filename)`0$($entry.hash_algorithm)`0$($entry.hash)"] -eq $true))
     })
 }
 
-# Upgrade from the first release. Remove only the exact old mod file our installer installed.
+# The earliest migration had no ownership field or pinned manifest. Its file
+# may have been present before POSLE, so require the player to resolve it.
 $oldFlashier = Join-Path (Join-Path $MinecraftDirectory 'mods') 'Flashier Flashlights 1.2.0.jar'
-$oldFlashierHash = '1065fc113fef88c992efc7dd100aafbc6fc7179722ebc88a8962e2093731be270b2695ac65fb0287864ebcd879a044aa33d341587c7565b16bd4427fbcdbdee4'
-if (Test-MatchingHash -Path $oldFlashier -Algorithm 'SHA512' -Expected $oldFlashierHash) {
-    Remove-Item -LiteralPath $oldFlashier -Force
-    Write-Host 'Removed previous Flashier Flashlights version.'
-} elseif (Test-Path -LiteralPath $oldFlashier -PathType Leaf) {
-    throw "An unknown Flashier Flashlights file remains at $oldFlashier. Move it out before joining the updated server."
+if (Test-Path -LiteralPath $oldFlashier) {
+    throw "Legacy Flashier Flashlights ownership cannot be verified: $oldFlashier. Move it out manually before joining the updated server."
 }
 
 $forgeVersionId = '1.20.1-forge-47.4.10'
@@ -353,17 +427,19 @@ if (-not $SkipForge -and -not $forgeReady) {
 # Remove only files that a previous version of this installer installed and that
 # are no longer in the current manifest. Preserve every unrecognized file.
 foreach ($old in @($previousReceipt.managed_files | Where-Object { $null -ne $_ })) {
-    if ($old.folder -notin $allowedFolders -or -not (Test-ValidFileName -Name $old.filename) -or
-        $old.hash_algorithm -notin @('SHA256', 'SHA512')) {
-        throw 'The previous installation receipt contains an unsafe file entry.'
-    }
     $relativePath = "$($old.folder)/$($old.filename)"
     if ($targetPaths.ContainsKey($relativePath)) { continue }
     $oldPath = Join-Path (Join-Path $MinecraftDirectory $old.folder) $old.filename
     if (-not (Test-Path -LiteralPath $oldPath -PathType Leaf)) { continue }
+    Assert-NoReparsePoint -Path $oldPath
+    if ($old.created_by_posle -cne $true) {
+        Write-Warning "Preserved pre-existing or legacy unknown-ownership file: $relativePath"
+        continue
+    }
     if (-not (Test-MatchingHash -Path $oldPath -Algorithm $old.hash_algorithm -Expected $old.hash)) {
         throw "An old managed file has changed: $oldPath. Move it out before updating."
     }
+    Assert-NoReparsePoint -Path $oldPath
     Remove-Item -LiteralPath $oldPath -Force
     Write-Host "Removed obsolete pack file: $relativePath"
 }

@@ -168,8 +168,13 @@ try {
     New-Item -ItemType Directory -Path $scratchFull -Force | Out-Null
     $copiedInstaller = Join-Path $scratchFull 'Install-HorrorClient.ps1'
     Copy-Item -LiteralPath $installer -Destination $copiedInstaller
+    $historicalDirectory = Join-Path $scratchFull 'historical'
+    New-Item -ItemType Directory -Path $historicalDirectory -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\client-pack\historical\client-modpack-2026.10.11.4.json') `
+        -Destination $historicalDirectory
     $testManifest = [ordered]@{
-        pack = 'POSLE graphics regression test'
+        pack = (Get-Content -LiteralPath (Join-Path $historicalDirectory 'client-modpack-2026.10.11.4.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json).pack
         pack_version = 'same-version'
         minecraft_version = '1.20.1'
         forge_version = '47.4.10'
