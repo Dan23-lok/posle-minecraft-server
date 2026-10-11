@@ -29,6 +29,7 @@ __pycache__/
 *.zip
 !website/assets/POSLE-ClientInstaller.zip
 !website/assets/POSLE-ClientInstaller-v5.zip
+!website/assets/POSLE-ClientInstaller-v6.zip
 *.tar
 *.tar.gz
 site/
