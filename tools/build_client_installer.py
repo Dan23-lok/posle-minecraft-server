@@ -18,7 +18,10 @@ CLIENT = ROOT / "client-pack"
 FILES = (
     "Install-Client.cmd",
     "Install-HorrorClient.ps1",
+    "Uninstall-Client.cmd",
+    "Uninstall-HorrorClient.ps1",
     "client-modpack.json",
+    "historical/client-modpack-2026.10.11.4.json",
     "README-RU.md",
 )
 
