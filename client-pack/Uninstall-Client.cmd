@@ -1,6 +1,6 @@
 @echo off
 setlocal
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Uninstall-HorrorClient.ps1" %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Uninstall-HorrorClient.ps1" -UnregisterWebsitePlay %*
 if errorlevel 1 (
   echo.
   echo Uninstall failed. Read the error above; no unknown files were deleted.

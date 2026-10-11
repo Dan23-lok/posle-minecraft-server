@@ -1,6 +1,7 @@
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
-    [string]$MinecraftDirectory = (Join-Path $env:APPDATA '.minecraft-horror-apocalypse')
+    [string]$MinecraftDirectory = (Join-Path $env:APPDATA '.minecraft-horror-apocalypse'),
+    [switch]$UnregisterWebsitePlay
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,13 +41,36 @@ function Test-MatchingHash {
     return $actual.Equals($Expected, [StringComparison]::OrdinalIgnoreCase)
 }
 
+function Invoke-WebsitePlayUnregister {
+    param([string]$ClientDirectory)
+    if (-not $UnregisterWebsitePlay -or $WhatIfPreference) { return }
+    $defaultClient = [IO.Path]::GetFullPath((Join-Path $env:APPDATA '.minecraft-horror-apocalypse'))
+    if (-not [string]::Equals($ClientDirectory.TrimEnd('\', '/'),
+            $defaultClient.TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase)) {
+        Write-Host 'Website Play association was not touched because this was not the default client folder.'
+        return
+    }
+    $unregisterPath = Join-Path $PSScriptRoot 'Unregister-PlayProtocol.ps1'
+    if (-not (Test-Path -LiteralPath $unregisterPath -PathType Leaf)) {
+        Write-Warning 'Website Play association may remain: Unregister-PlayProtocol.ps1 is missing.'
+        return
+    }
+    try {
+        & $unregisterPath -Confirm:$false
+    } catch {
+        Write-Warning "Website Play could not be removed safely: $($_.Exception.Message)"
+    }
+}
+
 if (-not (Test-Path -LiteralPath $MinecraftDirectory -PathType Container)) {
     Write-Host "The client directory does not exist: $MinecraftDirectory"
+    Invoke-WebsitePlayUnregister -ClientDirectory $MinecraftDirectory
     return
 }
 Assert-NoReparsePoint -Path $MinecraftDirectory
 if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
     Write-Host "No POSLE installation receipt found in $MinecraftDirectory. Nothing was removed."
+    Invoke-WebsitePlayUnregister -ClientDirectory $MinecraftDirectory
     return
 }
 Assert-NoReparsePoint -Path $receiptPath
@@ -216,3 +240,4 @@ if ($remaining.Count -eq 0) {
     Write-Host "Removed $removedCount managed files; $($remaining.Count) modified or locked files remain recorded."
 }
 Write-Host 'Saves, options, other mods, Forge, Java, and the Minecraft instance directory were preserved.'
+Invoke-WebsitePlayUnregister -ClientDirectory $MinecraftDirectory

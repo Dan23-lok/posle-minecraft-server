@@ -29,7 +29,7 @@ function Test-ForgePinnedFile {
 }
 
 function Test-ForgeReady {
-    param([string]$ClientRoot, [string]$VersionId)
+    param([string]$ClientRoot, [string]$VersionId, [switch]$StrictLauncherProfile)
     if ($VersionId -cne '1.20.1-forge-47.4.10') { return $false }
     $minecraftClientSha1 = '0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838'
     $minecraftClientSize = 23028853L
@@ -49,6 +49,22 @@ function Test-ForgeReady {
     }
     if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf) -or
         -not (Test-Path -LiteralPath $forgeJar -PathType Leaf)) { return $false }
+    if ($StrictLauncherProfile) {
+        # The ordinary installer tolerates other launchers' profile rewrites.
+        # URI activation has a narrower trust boundary: a mutable profile can
+        # add an arbitrary library with its own SHA-1 or JVM -javaagent while
+        # passing the structural checks below. Admit only the byte-exact
+        # official Forge child profile and TLauncher 2.9378 merged profile
+        # inspected on this Windows client. Other forms require manual launch
+        # until separately reviewed and pinned in a later release.
+        $knownProfiles = @(
+            'DE680055791048582F749D061DC3A2FDCFAFF9B04EA3058017C8B91AE9D3FEAA',
+            '1778DCFA49E875CD21165692616BF1F340A810C1AF1A2C011664E4AABA231B5E'
+        )
+        if ((Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash -cnotin $knownProfiles) {
+            return $false
+        }
+    }
     if ((Get-Item -LiteralPath $forgeJar).Length -ne $forgeClientSize -or
         -not (Get-FileHash -LiteralPath $forgeJar -Algorithm SHA256).Hash.Equals(
             $forgeClientSha256, [StringComparison]::OrdinalIgnoreCase)) { return $false }

@@ -6,6 +6,9 @@ param(
     [switch]$NoShader,
     [switch]$NoResourcePack,
     [switch]$SkipForge,
+    [switch]$OfferWebsitePlay,
+    [ValidateSet('Ask', 'Enable', 'Skip')]
+    [string]$WebsitePlayDecision = 'Ask',
     [switch]$LaunchTLauncher
 )
 
@@ -899,8 +902,11 @@ $receipt = [ordered]@{
     minecraft_directory = $MinecraftDirectory
     graphics_profile = $resolvedProfile
     no_shader = $NoShader.IsPresent
+    no_resource_pack = $NoResourcePack.IsPresent
     forge_installed = $forgeReady
-    shader_installed = (Test-Path -LiteralPath (Join-Path $MinecraftDirectory 'shaderpacks\DMS 1.0.3.zip') -PathType Leaf)
+    shader_installed = (@($managedFiles | Where-Object {
+        $_.folder -eq 'shaderpacks' -and $_.filename -eq 'DMS 1.0.3.zip'
+    }).Count -eq 1)
     managed_files = @($managedFiles.ToArray())
 }
 if ($animationPatchEnabled) {
@@ -985,6 +991,18 @@ Write-Host 'On first launch, TLauncher may download vanilla version metadata and
 Write-Host 'The installer has not verified a game launch or server connection.'
 Write-Host 'DynamicRenderDistance adjusts view distance in play; use F8 to set a maximum of 8 chunks.'
 Write-Host "Server address: $($manifest.server_address)"
+
+if ($OfferWebsitePlay) {
+    $configurePlay = Join-Path $PSScriptRoot 'Configure-WebsitePlay.ps1'
+    if (-not (Test-Path -LiteralPath $configurePlay -PathType Leaf)) {
+        throw 'Client files are installed, but website Play setup is missing from the installer archive.'
+    }
+    try {
+        & $configurePlay -MinecraftDirectory $MinecraftDirectory -Decision $WebsitePlayDecision
+    } catch {
+        throw "Client files are installed, but website Play setup failed: $($_.Exception.Message). You can still open TLauncher manually."
+    }
+}
 
 if ($LaunchTLauncher) {
     $candidates = @(
