@@ -3,7 +3,7 @@
   "minecraft": "1.20.1",
   "loader": "Forge",
   "loader_version": "47.4.10",
-  "note": "Current production has 22 JARs, including AuthMod 1.5.2-codex10-staging, Pehkui, and server-only POSLE Creature Behavior RC5. The filename suffix staging is retained for the verified AuthMod build that is deployed. The production Spooki config disables frost, lightning, magma, and wither creepers; one previously saved lightning creeper was removed after a cold backup and isolated startup check. Mutant Monsters and Puzzles Lib remain excluded because isolated testing found unsafe terrain damage. URLs point to original project files; JARs and authentication secrets are not included. This manifest does not certify untested gameplay or owner TLauncher launch.",
+  "note": "Production manifest: 23 pinned JARs on 2026-10-11, including Powered Flashlight and Dynamic Flashlight 2.1.0. The server restarted after a verified cold backup; the Dynamic Flashlight JAR matches its SHA-512 below. Client pack 2026.10.11.8 was installed for the owner and released publicly, but the owner TLauncher launch and production game join remain unverified. Older Powered-only clients failed the isolated Forge registry handshake. URLs point to original project files; JARs, credentials, player data and backups are not published.",
   "mods": [
     {
       "name": "Atlas Lib",
@@ -246,6 +246,17 @@
       "download_url": null,
       "sha512": "45cd71774a6566da18acb3433d53fd840e4c37fdc1f31143ea9d9c7825ebd65d607b28ec03abfbe6a1e32574d42aab4b07f4a09cd10d6e7b249c2db508bfbc1d",
       "source": "local_custom_build"
+    },
+    {
+      "name": "Dynamic Flashlight",
+      "version": "2.1.0-forge",
+      "filename": "flashlight-2.1.0-forge-1.20.1.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/dynamic-flashlight/version/dkQtiEhc",
+      "download_url": "https://cdn.modrinth.com/data/SemszBhn/versions/dkQtiEhc/flashlight-2.1.0-forge-1.20.1.jar",
+      "sha512": "45e97d9f5263331a3cd3787b64bbfbf5e75fd591d30847e73b4816a921d66bb2acb03f9b1a4ccadd64289574fac0a434515c9fb36d701ea32ea191d828611530",
+      "source": "modrinth"
     }
   ]
 }
