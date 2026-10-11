@@ -106,8 +106,7 @@ public class AuthCommands {
                             } else {
                                 LoginLimiter.recordFailure(username);
                                 if (LoginLimiter.isLocked(username)) {
-                                    player.sendSystemMessage(Lang.msg(player, "authmod.limiter.too_many_attempts"));
-                                    player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", LoginLimiter.remainingSeconds(username)));
+                                    player.connection.disconnect(Lang.msg(player, "authmod.limiter.kicked"));
                                 } else {
                                     player.sendSystemMessage(Lang.msg(player, "authmod.login.wrong_password"));
                                 }

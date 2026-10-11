@@ -3,7 +3,7 @@
   "minecraft": "1.20.1",
   "loader": "Forge",
   "loader_version": "47.4.10",
-  "note": "Server staging-v2 mod inventory. URLs point to authors official project/file pages; no JARs or authentication secrets are included. Local custom Auth Mod has no public download URL.",
+  "note": "Verified Forge 1.20.1 server mod inventory. URLs point to original project files; JARs and authentication secrets are not included.",
   "mods": [
     {
       "name": "Atlas Lib",
@@ -18,13 +18,13 @@
     },
     {
       "name": "Auth Mod (local custom build)",
-      "version": "1.5.1-codex3",
-      "filename": "authmod-1.5.1-codex3.jar",
+      "version": "1.5.1-codex4",
+      "filename": "authmod-1.5.1-codex4.jar",
       "client_side": "unsupported",
       "server_side": "required",
       "official_url": null,
       "download_url": null,
-      "sha512": "845aaabc4e2be3d809805743eaf324a924ddd9bb4a8a35910092c8e4797dd5af8c64afc92de58f839276f0b9a8c34babf5aa908c8b9c6b42e084b3a37b91f71a",
+      "sha512": "275947b126d6e284db5d1f542fedde156e0bfc0e295db986aeb4676cd4b36c44235434ac78a811be41d3041355f5a215bd18e8e97a462342d434b49c94d872ba",
       "source": "local_custom_build"
     },
     {
@@ -190,6 +190,39 @@
       "official_url": "https://modrinth.com/mod/the-hordes",
       "download_url": "https://cdn.modrinth.com/data/O3HDffUR/versions/WMyMpstF/The-Hordes-1.20.1-1.6.3i-all.jar",
       "sha512": "a6baf363a395a1f8489f257dc9eccbe4bc04773276388136f4286324bb0726b014f8890a33dce0f49fc3c189a166fabbd42a3bd713ebf75a6397dd4e62fda716",
+      "source": "modrinth"
+    },
+    {
+      "name": "Born in Chaos",
+      "version": "1.7.5",
+      "filename": "born_in_chaos_[Forge]1.20.1_1.7.5.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/born-in-chaos",
+      "download_url": "https://cdn.modrinth.com/data/1kcHy4de/versions/8wmEhUSt/born_in_chaos_%5BForge%5D1.20.1_1.7.5.jar",
+      "sha512": "8b889b43dcbdb4882a4144d41b49f7e14f567abe24041cc9577082fa6f653795796966d203bb2870c55419ee24aaa15a743ae17dc515a33d24e60f3619f5a27f",
+      "source": "modrinth"
+    },
+    {
+      "name": "GeckoLib",
+      "version": "4.8.4",
+      "filename": "geckolib-forge-1.20.1-4.8.4.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/geckolib",
+      "download_url": "https://cdn.modrinth.com/data/8BmcQJ2H/versions/aC5KMoNg/geckolib-forge-1.20.1-4.8.4.jar",
+      "sha512": "443a321a293e3cb92fbbc3c97a38b179a45d1db703cd7bdb123270a9e04e7b7d67d5b06cd8e77a6d4d9139e033e901b9660cccf53ad5f9beaae6d06eae68febf",
+      "source": "modrinth"
+    },
+    {
+      "name": "Spooki's Unique Mobs",
+      "version": "0.9.1",
+      "filename": "spookis-unique-mobs-0.9.1+1.20.1+forge.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/spookis-unique-mobs",
+      "download_url": "https://cdn.modrinth.com/data/QDJiv6Nj/versions/nbqfdVPx/spookis-unique-mobs-0.9.1%2B1.20.1%2Bforge.jar",
+      "sha512": "bf0701d71938f0449c3ddc0763f5ba32b7262a2ae73314a3b8e8ef4cebc593816c8bd9208306801d5c2a24d4b44c9465e29e30c39f7988221b78e4d851de2686",
       "source": "modrinth"
     }
   ]

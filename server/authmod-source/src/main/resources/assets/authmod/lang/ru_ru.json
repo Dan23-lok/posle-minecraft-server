@@ -20,6 +20,8 @@
   "authmod.command.blocked": "§cКоманды недоступны до входа! Сначала §e/login§c или §e/register§c.",
   "authmod.limiter.too_many_attempts": "§cСлишком много попыток входа!",
   "authmod.limiter.cooldown": "§cПодожди §e%s§c сек перед следующей попыткой.",
+  "authmod.limiter.kicked": "Слишком много неверных паролей. Вход временно заблокирован; подключитесь позже.",
+  "authmod.login.timeout": "Время входа истекло. Подключитесь снова и используйте /login или /register.",
   "authmod.usage.register": "§eИспользование: /register <пароль> <код_приглашения>",
   "authmod.usage.login": "§eИспользование: /login <пароль>",
   "authmod.usage.changepassword": "§eИспользование: /changepassword <старый_пароль> <новый_пароль>",

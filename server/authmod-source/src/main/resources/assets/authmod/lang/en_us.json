@@ -20,6 +20,8 @@
   "authmod.command.blocked": "§cCommands are locked! Use §e/login§c or §e/register§c first.",
   "authmod.limiter.too_many_attempts": "§cToo many login attempts!",
   "authmod.limiter.cooldown": "§cWait §e%s§c seconds before trying again.",
+  "authmod.limiter.kicked": "Too many incorrect passwords. Login is temporarily locked; reconnect later.",
+  "authmod.login.timeout": "Login timed out. Reconnect and use /login or /register.",
   "authmod.usage.register": "§eUsage: /register <password> <invite_code>",
   "authmod.usage.login": "§eUsage: /login <password>",
   "authmod.usage.changepassword": "§eUsage: /changepassword <old_password> <new_password>",

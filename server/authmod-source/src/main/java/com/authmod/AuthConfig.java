@@ -15,11 +15,13 @@ public final class AuthConfig {
 
     private static final ForgeConfigSpec.IntValue MIN_PASSWORD_LENGTH;
     private static final ForgeConfigSpec.IntValue MAX_LOGIN_ATTEMPTS;
+    private static final ForgeConfigSpec.IntValue LOGIN_TIMEOUT_SECONDS;
     private static final ForgeConfigSpec.IntValue LOCKOUT_SECONDS;
     private static final ForgeConfigSpec.ConfigValue<String> LANGUAGE;
 
     private static int minPasswordLength = 12;
-    private static int maxLoginAttempts = 3;
+    private static int maxLoginAttempts = 5;
+    private static int loginTimeoutSeconds = 300;
     private static int lockoutSeconds = 60;
     private static String language = "auto";
 
@@ -29,7 +31,9 @@ public final class AuthConfig {
         MIN_PASSWORD_LENGTH = builder.comment("Minimum password length for /register and password changes")
                 .defineInRange("minPasswordLength", 12, 4, 64);
         MAX_LOGIN_ATTEMPTS = builder.comment("Failed /login attempts before a temporary lockout")
-                .defineInRange("maxLoginAttempts", 3, 1, 100);
+                .defineInRange("maxLoginAttempts", 5, 1, 100);
+        LOGIN_TIMEOUT_SECONDS = builder.comment("Seconds allowed to use /login or /register after joining")
+                .defineInRange("loginTimeoutSeconds", 300, 30, 3600);
         LOCKOUT_SECONDS = builder.comment("Lockout duration in seconds after too many failed attempts")
                 .defineInRange("lockoutSeconds", 60, 1, 3600);
         LANGUAGE = builder.comment("Message language: auto (client language), ru or en")
@@ -54,6 +58,7 @@ public final class AuthConfig {
     private static void cache() {
         minPasswordLength = MIN_PASSWORD_LENGTH.get();
         maxLoginAttempts = MAX_LOGIN_ATTEMPTS.get();
+        loginTimeoutSeconds = LOGIN_TIMEOUT_SECONDS.get();
         lockoutSeconds = LOCKOUT_SECONDS.get();
         language = LANGUAGE.get();
     }
@@ -64,6 +69,10 @@ public final class AuthConfig {
 
     public static int maxLoginAttempts() {
         return maxLoginAttempts;
+    }
+
+    public static int loginTimeoutSeconds() {
+        return loginTimeoutSeconds;
     }
 
     public static int lockoutSeconds() {

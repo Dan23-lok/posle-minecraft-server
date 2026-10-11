@@ -29,7 +29,9 @@ public class AuthEventHandler {
     private static final WeakHashMap<ServerPlayer, GameType> previousGameMode = new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer, String> greetedLocale = new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer, Long> loginDeadlines = new WeakHashMap<>();
-    private static final long LOGIN_TIMEOUT_MS = 120_000L;
+    private static long loginDeadline() {
+        return System.currentTimeMillis() + AuthConfig.loginTimeoutSeconds() * 1000L;
+    }
 
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
@@ -52,7 +54,7 @@ public class AuthEventHandler {
         LOGGER.info("[AuthMod] Player joined: {}", username);
 
         sessions.join(player.getUUID(), player);
-        loginDeadlines.put(player, System.currentTimeMillis() + LOGIN_TIMEOUT_MS);
+        loginDeadlines.put(player, loginDeadline());
         lastPosition.put(player, new double[]{player.getX(), player.getY(), player.getZ()});
 
         lockPlayer(player);
@@ -91,7 +93,7 @@ public class AuthEventHandler {
         greetedLocale.remove(original);
 
         if (!isAuthenticated(replacement)) {
-            loginDeadlines.putIfAbsent(replacement, System.currentTimeMillis() + LOGIN_TIMEOUT_MS);
+            loginDeadlines.putIfAbsent(replacement, loginDeadline());
             lastPosition.put(replacement, new double[]{replacement.getX(), replacement.getY(), replacement.getZ()});
         }
     }
@@ -102,7 +104,7 @@ public class AuthEventHandler {
         sessions.joinIfAbsent(player.getUUID(), player);
         if (isAuthenticated(player)) return;
 
-        loginDeadlines.putIfAbsent(player, System.currentTimeMillis() + LOGIN_TIMEOUT_MS);
+        loginDeadlines.putIfAbsent(player, loginDeadline());
         lastPosition.put(player, new double[]{player.getX(), player.getY(), player.getZ()});
         if (previousGameMode.containsKey(player)) player.setGameMode(GameType.SPECTATOR);
         else lockPlayer(player);
@@ -119,7 +121,7 @@ public class AuthEventHandler {
 
         Long deadline = loginDeadlines.get(player);
         if (deadline != null && System.currentTimeMillis() >= deadline) {
-            player.connection.disconnect(Component.literal("Login timed out. Reconnect and use /login or /register."));
+            player.connection.disconnect(Lang.msg(player, "authmod.login.timeout"));
             return;
         }
 
@@ -282,7 +284,7 @@ public class AuthEventHandler {
         String username = player.getGameProfile().getName().toLowerCase(Locale.ROOT);
         sessions.relock(player.getUUID(), player);
         LoginLimiter.reset(username);
-        loginDeadlines.put(player, System.currentTimeMillis() + LOGIN_TIMEOUT_MS);
+        loginDeadlines.put(player, loginDeadline());
         lastPosition.put(player, new double[]{player.getX(), player.getY(), player.getZ()});
         lockPlayer(player);
         sendAuthMessage(player, Lang.localeOf(player));
