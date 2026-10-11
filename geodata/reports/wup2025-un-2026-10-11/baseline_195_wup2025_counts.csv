@@ -1,0 +1,196 @@
+iso2,name_en,name_ru,wup_urban_centres_2025,observed_in_wup_city_rows_2025
+AD,Andorra,Андорра,0,false
+AE,United Arab Emirates,ОАЭ,15,true
+AF,Afghanistan,Афганистан,85,true
+AG,Antigua & Barbuda,Антигуа и Барбуда,0,false
+AL,Albania,Албания,6,true
+AM,Armenia,Армения,3,true
+AO,Angola,Ангола,57,true
+AR,Argentina,Аргентина,77,true
+AT,Austria,Австрия,8,true
+AU,Australia,Австралия,29,true
+AZ,Azerbaijan,Азербайджан,22,true
+BA,Bosnia & Herzegovina,Босния и Герцеговина,4,true
+BB,Barbados,Барбадос,1,true
+BD,Bangladesh,Бангладеш,233,true
+BE,Belgium,Бельгия,16,true
+BF,Burkina Faso,Буркина-Фасо,28,true
+BG,Bulgaria,Болгария,9,true
+BH,Bahrain,Бахрейн,1,true
+BI,Burundi,Бурунди,12,true
+BJ,Benin,Бенин,29,true
+BN,Brunei,Бруней,2,true
+BO,Bolivia,Боливия,12,true
+BR,Brazil,Бразилия,356,true
+BS,Bahamas,Багамы,1,true
+BT,Bhutan,Бутан,2,true
+BW,Botswana,Ботсвана,4,true
+BY,Belarus,Беларусь,15,true
+BZ,Belize,Белиз,1,true
+CA,Canada,Канада,56,true
+CD,Democratic Republic of the Congo,Демократическая Республика Конго,223,true
+CF,Central African Republic,Центрально-Африканская Республика,6,true
+CG,Republic of the Congo,Республика Конго,4,true
+CH,Switzerland,Швейцария,17,true
+CI,Côte d’Ivoire,Кот-д’Ивуар,47,true
+CL,Chile,Чили,36,true
+CM,Cameroon,Камерун,44,true
+CN,China,Китай,2082,true
+CO,Colombia,Колумбия,81,true
+CR,Costa Rica,Коста-Рика,6,true
+CU,Cuba,Куба,28,true
+CV,Cape Verde,Кабо-Верде,2,true
+CY,Cyprus,Кипр,4,true
+CZ,Czechia,Чехия,12,true
+DE,Germany,Германия,100,true
+DJ,Djibouti,Джибути,4,true
+DK,Denmark,Дания,5,true
+DM,Dominica,Доминика,0,false
+DO,Dominican Republic,Доминиканская Республика,17,true
+DZ,Algeria,Алжир,109,true
+EC,Ecuador,Эквадор,32,true
+EE,Estonia,Эстония,2,true
+EG,Egypt,Египет,219,true
+ER,Eritrea,Эритрея,10,true
+ES,Spain,Испания,84,true
+ET,Ethiopia,Эфиопия,259,true
+FI,Finland,Финляндия,6,true
+FJ,Fiji,Фиджи,2,true
+FM,Federated States of Micronesia,Федеративные Штаты Микронезии,0,false
+FR,France,Франция,71,true
+GA,Gabon,Габон,6,true
+GB,United Kingdom,Великобритания,150,true
+GD,Grenada,Гренада,0,false
+GE,Georgia,Грузия,5,true
+GH,Ghana,Гана,58,true
+GM,Gambia,Гамбия,4,true
+GN,Guinea,Гвинея,24,true
+GQ,Equatorial Guinea,Экваториальная Гвинея,2,true
+GR,Greece,Греция,8,true
+GT,Guatemala,Гватемала,31,true
+GW,Guinea-Bissau,Гвинея-Бисау,3,true
+GY,Guyana,Гайана,2,true
+HN,Honduras,Гондурас,16,true
+HR,Croatia,Хорватия,5,true
+HT,Haiti,Гаити,21,true
+HU,Hungary,Венгрия,13,true
+ID,Indonesia,Индонезия,389,true
+IE,Ireland,Ирландия,5,true
+IL,Israel,Израиль,25,true
+IN,India,Индия,2054,true
+IQ,Iraq,Ирак,88,true
+IR,Iran,Иран,210,true
+IS,Iceland,Исландия,1,true
+IT,Italy,Италия,95,true
+JM,Jamaica,Ямайка,6,true
+JO,Jordan,Иордания,15,true
+JP,Japan,Япония,137,true
+KE,Kenya,Кения,50,true
+KG,Kyrgyzstan,Киргизия,12,true
+KH,Cambodia,Камбоджа,10,true
+KI,Kiribati,Кирибати,0,false
+KM,Comoros,Коморы,2,true
+KN,St. Kitts & Nevis,Сент-Китс и Невис,0,false
+KP,Democratic People's Republic of Korea,КНДР,104,true
+KR,Republic of Korea,Республика Корея,49,true
+KW,Kuwait,Кувейт,2,true
+KZ,Kazakhstan,Казахстан,34,true
+LA,Laos,Лаос,3,true
+LB,Lebanon,Ливан,9,true
+LC,St. Lucia,Сент-Люсия,0,false
+LI,Liechtenstein,Лихтенштейн,0,false
+LK,Sri Lanka,Шри-Ланка,24,true
+LR,Liberia,Либерия,9,true
+LS,Lesotho,Лесото,1,true
+LT,Lithuania,Литва,5,true
+LU,Luxembourg,Люксембург,1,true
+LV,Latvia,Латвия,3,true
+LY,Libya,Ливия,14,true
+MA,Morocco,Марокко,73,true
+MC,Monaco,Монако,1,true
+MD,Moldova,Молдова,5,true
+ME,Montenegro,Черногория,2,true
+MG,Madagascar,Мадагаскар,24,true
+MH,Marshall Islands,Маршалловы о-ва,0,false
+MK,North Macedonia,Северная Македония,4,true
+ML,Mali,Мали,20,true
+MM,Myanmar (Burma),Мьянма (Бирма),125,true
+MN,Mongolia,Монголия,2,true
+MR,Mauritania,Мавритания,6,true
+MT,Malta,Мальта,1,true
+MU,Mauritius,Маврикий,1,true
+MV,Maldives,Мальдивы,1,true
+MW,Malawi,Малави,8,true
+MX,Mexico,Мексика,186,true
+MY,Malaysia,Малайзия,42,true
+MZ,Mozambique,Мозамбик,48,true
+NA,Namibia,Намибия,4,true
+NE,Niger,Нигер,35,true
+NG,Nigeria,Нигерия,457,true
+NI,Nicaragua,Никарагуа,12,true
+NL,Netherlands,Нидерланды,44,true
+NO,Norway,Норвегия,9,true
+NP,Nepal,Непал,19,true
+NR,Nauru,Науру,0,false
+NZ,New Zealand,Новая Зеландия,10,true
+OM,Oman,Оман,12,true
+PA,Panama,Панама,5,true
+PE,Peru,Перу,43,true
+PG,Papua New Guinea,Папуа — Новая Гвинея,11,true
+PH,Philippines,Филиппины,114,true
+PK,Pakistan,Пакистан,323,true
+PL,Poland,Польша,60,true
+PS,State of Palestine,Государство Палестина,13,true
+PT,Portugal,Португалия,9,true
+PW,Palau,Палау,0,false
+PY,Paraguay,Парагвай,9,true
+QA,Qatar,Катар,5,true
+RO,Romania,Румыния,29,true
+RS,Serbia,Сербия,13,true
+RU,Russia,Россия,254,true
+RW,Rwanda,Руанда,5,true
+SA,Saudi Arabia,Саудовская Аравия,44,true
+SB,Solomon Islands,Соломоновы о-ва,1,true
+SC,Seychelles,Сейшельские о-ва,0,false
+SD,Sudan,Судан,105,true
+SE,Sweden,Швеция,17,true
+SG,Singapore,Сингапур,2,true
+SI,Slovenia,Словения,2,true
+SK,Slovakia,Словакия,7,true
+SL,Sierra Leone,Сьерра-Леоне,11,true
+SM,San Marino,Сан-Марино,0,false
+SN,Senegal,Сенегал,26,true
+SO,Somalia,Сомали,53,true
+SR,Suriname,Суринам,1,true
+SS,South Sudan,Южный Судан,25,true
+ST,São Tomé & Príncipe,Сан-Томе и Принсипи,1,true
+SV,El Salvador,Сальвадор,12,true
+SY,Syria,Сирия,37,true
+SZ,Eswatini,Эсватини,1,true
+TD,Chad,Чад,37,true
+TG,Togo,Того,17,true
+TH,Thailand,Таиланд,56,true
+TJ,Tajikistan,Таджикистан,25,true
+TL,Timor-Leste,Восточный Тимор,1,true
+TM,Turkmenistan,Туркменистан,11,true
+TN,Tunisia,Тунис,24,true
+TO,Tonga,Тонга,0,false
+TR,Türkiye,Турция,177,true
+TT,Trinidad & Tobago,Тринидад и Тобаго,3,true
+TV,Tuvalu,Тувалу,0,false
+TZ,Tanzania,Танзания,45,true
+UA,Ukraine,Украина,79,true
+UG,Uganda,Уганда,27,true
+US,United States,Соединенные Штаты,348,true
+UY,Uruguay,Уругвай,7,true
+UZ,Uzbekistan,Узбекистан,76,true
+VA,Holy See,Святой Престол (Ватикан),0,false
+VC,St. Vincent & Grenadines,Сент-Винсент и Гренадины,0,false
+VE,Venezuela,Венесуэла,69,true
+VN,Vietnam,Вьетнам,137,true
+VU,Vanuatu,Вануату,1,true
+WS,Samoa,Самоа,0,false
+YE,Yemen,Йемен,111,true
+ZA,South Africa,Южно-Африканская Республика,95,true
+ZM,Zambia,Замбия,33,true
+ZW,Zimbabwe,Зимбабве,15,true
