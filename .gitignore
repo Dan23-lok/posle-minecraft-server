@@ -2,6 +2,7 @@
 *.secret
 *.token
 *.log
+server/authmod-source/logs/
 *.tmp
 __pycache__/
 *.py[cod]
