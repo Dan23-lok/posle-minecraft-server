@@ -3,7 +3,7 @@
   "minecraft": "1.20.1",
   "loader": "Forge",
   "loader_version": "47.4.10",
-  "note": "Current production has 22 JARs, including AuthMod 1.5.2-codex8-staging, Pehkui, and server-only POSLE Creature Behavior RC5. The filename suffix staging is retained for the verified AuthMod build that is deployed. The production Spooki config disables frost, lightning, magma, and wither creepers; one previously saved lightning creeper was removed after a cold backup and isolated startup check. Mutant Monsters and Puzzles Lib remain excluded because isolated testing found unsafe terrain damage. URLs point to original project files; JARs and authentication secrets are not included. This manifest does not certify untested gameplay or owner TLauncher launch.",
+  "note": "Current production has 22 JARs, including AuthMod 1.5.2-codex10-staging, Pehkui, and server-only POSLE Creature Behavior RC5. The filename suffix staging is retained for the verified AuthMod build that is deployed. The production Spooki config disables frost, lightning, magma, and wither creepers; one previously saved lightning creeper was removed after a cold backup and isolated startup check. Mutant Monsters and Puzzles Lib remain excluded because isolated testing found unsafe terrain damage. URLs point to original project files; JARs and authentication secrets are not included. This manifest does not certify untested gameplay or owner TLauncher launch.",
   "mods": [
     {
       "name": "Atlas Lib",
@@ -18,13 +18,13 @@
     },
     {
       "name": "Auth Mod (local custom build)",
-      "version": "1.5.2-codex8-staging",
-      "filename": "authmod-1.5.2-codex8-staging.jar",
+      "version": "1.5.2-codex10-staging",
+      "filename": "authmod-1.5.2-codex10-staging.jar",
       "client_side": "unsupported",
       "server_side": "required",
       "official_url": null,
       "download_url": null,
-      "sha512": "81e6151dbafd7545beefc776c26757fe699731a72a975b9a4417ab0e892c6ce28d0df2ab499cf6436821a273371bd7773ba393ec5dea97205a017f9a52383c86",
+      "sha512": "e90023d60ca5265893971deac55c581198fe8c388ecf11b18c46cce63a6d5ec7a5ca9a55acc57f4c68fe3fe94b2d42970a92ef4f056259a16e840ed6c8a13238",
       "source": "local_custom_build"
     },
     {
