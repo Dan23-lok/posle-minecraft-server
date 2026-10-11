@@ -26,6 +26,9 @@ $selectedServerProjects = [ordered]@{
     'Timeless and Classics Zero' = 'timeless-and-classics-zero'
     'The Hordes' = 'the-hordes'
     'Atlas Lib' = 'G6VHtQr4'
+    'Born in Chaos' = 'born-in-chaos'
+    'GeckoLib' = 'geckolib'
+    "Spooki's Unique Mobs" = 'spookis-unique-mobs'
 }
 
 $mods = New-Object System.Collections.ArrayList
@@ -108,9 +111,53 @@ if (-not $shaderFile) { $shaderFile = @($shader.files)[0] }
     source_page = 'https://modrinth.com/shader/dms'
 })
 
+# Client-only entity models/textures and original creator resource packs.
+$visualVersions = [ordered]@{
+    'entity-model-features' = @{ id = '6RQ5C1J6'; folder = 'mods'; kind = 'mod' }
+    'entitytexturefeatures' = @{ id = 'VkWikkyj'; folder = 'mods'; kind = 'mod' }
+    'fresh-animations' = @{ id = 'xN57JJts'; folder = 'resourcepacks'; kind = 'resourcepack' }
+}
+foreach ($project in $visualVersions.Keys) {
+    $selection = $visualVersions[$project]
+    $v = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/version/$($selection.id)" -Headers $headers
+    if ('1.20.1' -notin @($v.game_versions)) { throw "Not a Minecraft 1.20.1 asset: $project" }
+    if ($selection.folder -eq 'mods' -and 'forge' -notin @($v.loaders)) {
+        throw "Not a Forge asset: $project"
+    }
+    $file = @($v.files | Where-Object { $_.primary -eq $true })[0]
+    if (-not $file) { $file = @($v.files)[0] }
+    if (-not $file -or -not $file.hashes.sha512) { throw "Missing file/hash for $project" }
+    $entry = [ordered]@{
+        project = $project
+        version = $v.version_number
+        filename = $file.filename
+        url = $file.url
+        hash_algorithm = 'SHA512'
+        hash = $file.hashes.sha512.ToLowerInvariant()
+        folder = $selection.folder
+    }
+    if ($selection.folder -eq 'resourcepacks') { $entry.default_enabled = $true }
+    $entry.source_page = "https://modrinth.com/$($selection.kind)/$project/version/$($selection.id)"
+    [void]$mods.Add($entry)
+}
+
+# All Rights Reserved: the installer fetches this file from the original
+# CurseForge CDN; never bundle its contents in the installer release.
+[void]$mods.Add([ordered]@{
+    project = 'tissous-zombie-pack'
+    version = '1.20.1-2.7'
+    filename = 'TZP_1.20.1_2.7.zip'
+    url = 'https://mediafilez.forgecdn.net/files/4750/306/TZP_1.20.1_2.7.zip'
+    hash_algorithm = 'SHA512'
+    hash = '494bd42e2e0ae1e49bc27723ab04333ba1a5d7941e230d91e09b9d1844f70e136441025c75ac9a6611d30c746ddc3ecf8a6e8606a0fd4eaf8a607c96c34e9006'
+    folder = 'resourcepacks'
+    default_enabled = $true
+    source_page = 'https://www.curseforge.com/minecraft/texture-packs/tissous-zombie-pack-optifine-1-7x-1-20/files/4750306'
+})
+
 $manifest = [ordered]@{
     pack = ([char[]]@(0x041F, 0x041E, 0x0421, 0x041B, 0x0415) -join '')
-    pack_version = '2026.10.11.2'
+    pack_version = '2026.10.11.4'
     minecraft_version = '1.20.1'
     forge_version = '47.4.10'
     java_major = 17

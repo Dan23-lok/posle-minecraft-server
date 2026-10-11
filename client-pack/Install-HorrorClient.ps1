@@ -4,6 +4,7 @@ param(
     [ValidateSet('Auto', 'Low', 'Balanced', 'Cinematic')]
     [string]$GraphicsProfile = 'Auto',
     [switch]$NoShader,
+    [switch]$NoResourcePack,
     [switch]$SkipForge,
     [switch]$LaunchTLauncher
 )
@@ -22,7 +23,21 @@ $MinecraftDirectory = [System.IO.Path]::GetFullPath($MinecraftDirectory)
 New-Item -ItemType Directory -Path $MinecraftDirectory -Force | Out-Null
 $receiptPath = Join-Path $MinecraftDirectory 'horror-apocalypse-install.json'
 $previousInstall = Test-Path -LiteralPath $receiptPath -PathType Leaf
-$allowedHosts = @('cdn.modrinth.com', 'www.curseforge.com', 'maven.minecraftforge.net', 'corretto.aws')
+$previousReceipt = if ($previousInstall) {
+    try { Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json }
+    catch { throw "The previous installation receipt is invalid: $receiptPath" }
+} else { $null }
+$allowedHosts = @('cdn.modrinth.com', 'www.curseforge.com', 'mediafilez.forgecdn.net',
+    'maven.minecraftforge.net', 'corretto.aws')
+$allowedFolders = @('mods', 'shaderpacks', 'resourcepacks')
+
+function Test-ValidFileName {
+    param([string]$Name)
+    return (-not [string]::IsNullOrWhiteSpace($Name)) -and
+        $Name -notin @('.', '..') -and
+        $Name -notmatch '[\\/]' -and
+        $Name.IndexOfAny([System.IO.Path]::GetInvalidFileNameChars()) -lt 0
+}
 
 function Test-MatchingHash {
     param([string]$Path, [string]$Algorithm, [string]$Expected)
@@ -73,13 +88,20 @@ function Get-AutoGraphicsProfile {
         $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop |
             Where-Object { $_.Name -notmatch 'Microsoft Basic|Remote Display|Virtual Display' })
         $gpuNames = (($gpus | ForEach-Object { $_.Name }) -join ' ')
-        if ($ramGb -lt 12 -or ($gpuNames -match 'Intel (HD|UHD)|Radeon (Vega|Graphics)' -and
-                $gpuNames -notmatch 'GeForce|Radeon RX|Intel Arc')) { return 'Low' }
-        if ($ramGb -ge 16 -and $gpuNames -match 'GeForce RTX|GeForce GTX (10[6-9]|16[5-9]|[2-9][0-9])|Radeon RX|Intel Arc') {
+        $discreteGpu = $gpuNames -match 'GeForce|Radeon RX|Intel Arc|NVIDIA RTX'
+        $olderGpu = $gpuNames -match 'GeForce GTX ([6-9][0-9]{2}|10[0-5]0|16[0-5]0)' -or
+            $gpuNames -match 'Radeon RX [4-5][0-9]{2}|Intel Arc A3[0-9]{2}'
+        if ($ramGb -lt 12 -or -not $discreteGpu -or $olderGpu) {
+            return 'Low'
+        }
+        $strongGpu = $gpuNames -match 'GeForce RTX (30[7-9]0|40[7-9]0|50[7-9]0|60[7-9]0)' -or
+            $gpuNames -match 'Radeon RX (67|68|69|77|78|79|87|88|89)[0-9]{2}'
+        if ($ramGb -ge 24 -and $strongGpu) {
             return 'Cinematic'
         }
     } catch {
-        Write-Warning 'Hardware detection was unavailable; using balanced settings.'
+        Write-Warning 'Hardware detection was unavailable; using low settings.'
+        return 'Low'
     }
     return 'Balanced'
 }
@@ -112,14 +134,59 @@ function Update-KeyValueFile {
     [System.IO.File]::WriteAllLines($Path, $result.ToArray(), (New-Object System.Text.UTF8Encoding($false)))
 }
 
-$resolvedProfile = if ($GraphicsProfile -eq 'Auto') { Get-AutoGraphicsProfile } else { $GraphicsProfile }
+function Update-ResourcePackSelection {
+    param([string]$Path, [string[]]$RemoveIds, [string[]]$AddIds)
+    $existingLine = @()
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        $existingLine = @(Get-Content -LiteralPath $Path | Where-Object { $_ -like 'resourcePacks:*' } | Select-Object -First 1)
+    }
+    $selected = New-Object 'System.Collections.Generic.List[string]'
+    if ($existingLine.Count -eq 0) {
+        $selected.Add('vanilla')
+    } else {
+        try {
+            $parsed = ConvertFrom-Json -InputObject $existingLine[0].Substring('resourcePacks:'.Length)
+        } catch {
+            throw "Cannot read the existing resource pack selection in $Path. Back it up and repair it before updating."
+        }
+        foreach ($packId in @($parsed)) {
+            if ($packId -isnot [string]) { throw "Unexpected resource pack entry in $Path" }
+            if ($packId -notin $RemoveIds) { $selected.Add($packId) }
+        }
+    }
+    foreach ($addId in $AddIds) {
+        if ($addId -and -not $selected.Contains($addId)) { $selected.Add($addId) }
+    }
+    $value = ConvertTo-Json -InputObject $selected.ToArray() -Compress
+    Update-KeyValueFile -Path $Path -Separator ':' -Values ([ordered]@{ resourcePacks = $value })
+}
+
+$resolvedProfile = if ($GraphicsProfile -eq 'Auto') {
+    if ($previousReceipt -and $previousReceipt.graphics_profile -in @('Low', 'Balanced', 'Cinematic')) {
+        $previousReceipt.graphics_profile
+    } else {
+        Get-AutoGraphicsProfile
+    }
+} else { $GraphicsProfile }
 Write-Host "Graphics profile: $resolvedProfile"
+$managedFiles = New-Object 'System.Collections.Generic.List[object]'
+$targetPaths = @{}
 foreach ($entry in @($manifest.files)) {
+    if ($entry.folder -notin $allowedFolders) { throw "Unexpected folder: $($entry.folder)" }
+    if (-not (Test-ValidFileName -Name $entry.filename)) { throw "Invalid file name: $($entry.filename)" }
     if ($NoShader -and $entry.folder -eq 'shaderpacks') { continue }
-    if ($entry.folder -notin @('mods', 'shaderpacks')) { throw "Unexpected folder: $($entry.folder)" }
-    if ($entry.filename -match '[\\/]') { throw "Invalid file name: $($entry.filename)" }
+    if ($NoResourcePack -and $entry.folder -eq 'resourcepacks') { continue }
     $destination = Join-Path (Join-Path $MinecraftDirectory $entry.folder) $entry.filename
     Get-VerifiedFile -Url $entry.url -Destination $destination -Algorithm $entry.hash_algorithm -Expected $entry.hash
+    $relativePath = "$($entry.folder)/$($entry.filename)"
+    $targetPaths[$relativePath] = $true
+    $managedFiles.Add([ordered]@{
+        folder = $entry.folder
+        filename = $entry.filename
+        hash_algorithm = $entry.hash_algorithm
+        hash = $entry.hash
+        default_enabled = ($entry.folder -eq 'resourcepacks' -and $entry.default_enabled -eq $true)
+    })
 }
 
 # Upgrade from the first release. Remove only the exact old mod file our installer installed.
@@ -171,7 +238,27 @@ if (-not $SkipForge -and -not $forgeReady) {
     $forgeReady = $true
 }
 
-$shouldApplyGraphics = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or $NoShader.IsPresent
+# Remove only files that a previous version of this installer installed and that
+# are no longer in the current manifest. Preserve every unrecognized file.
+foreach ($old in @($previousReceipt.managed_files | Where-Object { $null -ne $_ })) {
+    if ($old.folder -notin $allowedFolders -or -not (Test-ValidFileName -Name $old.filename) -or
+        $old.hash_algorithm -notin @('SHA256', 'SHA512')) {
+        throw 'The previous installation receipt contains an unsafe file entry.'
+    }
+    $relativePath = "$($old.folder)/$($old.filename)"
+    if ($targetPaths.ContainsKey($relativePath)) { continue }
+    $oldPath = Join-Path (Join-Path $MinecraftDirectory $old.folder) $old.filename
+    if (-not (Test-Path -LiteralPath $oldPath -PathType Leaf)) { continue }
+    if (-not (Test-MatchingHash -Path $oldPath -Algorithm $old.hash_algorithm -Expected $old.hash)) {
+        throw "An old managed file has changed: $oldPath. Move it out before updating."
+    }
+    Remove-Item -LiteralPath $oldPath -Force
+    Write-Host "Removed obsolete pack file: $relativePath"
+}
+
+$shouldApplyGraphics = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
+    $NoShader.IsPresent -or $NoResourcePack.IsPresent -or
+    $previousReceipt.pack_version -ne $manifest.pack_version
 if ($shouldApplyGraphics) {
     $videoSettings = switch ($resolvedProfile) {
         'Low' { [ordered]@{ renderDistance='6'; simulationDistance='5'; graphicsMode='0'; particles='2'; entityShadows='false'; entityDistanceScaling='0.5'; mipmapLevels='2'; maxFps='60' } }
@@ -188,6 +275,38 @@ if ($shouldApplyGraphics) {
     Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'config\oculus.properties') -Separator '=' -Values $oculusSettings
 }
 
+$defaultResourcePacks = @($manifest.files | Where-Object {
+    $_.folder -eq 'resourcepacks' -and $_.default_enabled -eq $true
+})
+$previousResourcePacks = @($previousReceipt.managed_files | Where-Object {
+    $null -ne $_ -and $_.folder -eq 'resourcepacks'
+})
+$newDefaultResourcePack = $false
+foreach ($pack in $defaultResourcePacks) {
+    $currentName = $pack.filename
+    if (@($previousResourcePacks | Where-Object {
+        $_.filename -eq $currentName -and $_.default_enabled -eq $true
+    }).Count -eq 0) {
+        $newDefaultResourcePack = $true
+        break
+    }
+}
+$obsoleteResourcePacks = @($previousResourcePacks | Where-Object {
+    -not $targetPaths.ContainsKey("resourcepacks/$($_.filename)")
+})
+$refreshResourcePacks = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
+    $NoResourcePack.IsPresent -or $newDefaultResourcePack -or $obsoleteResourcePacks.Count -gt 0
+if ($refreshResourcePacks -and ($defaultResourcePacks.Count -gt 0 -or $previousResourcePacks.Count -gt 0)) {
+    $removeIds = @($previousResourcePacks | Where-Object {
+        $_.default_enabled -eq $true -or $NoResourcePack.IsPresent -or
+            -not $targetPaths.ContainsKey("resourcepacks/$($_.filename)")
+    } | ForEach-Object { "file/$($_.filename)" })
+    $defaultIds = @($defaultResourcePacks | ForEach-Object { "file/$($_.filename)" })
+    $removeIds += $defaultIds
+    $addIds = if ($NoResourcePack.IsPresent) { @() } else { $defaultIds }
+    Update-ResourcePackSelection -Path (Join-Path $MinecraftDirectory 'options.txt') -RemoveIds $removeIds -AddIds $addIds
+}
+
 $receipt = [ordered]@{
     pack = $manifest.pack
     pack_version = $manifest.pack_version
@@ -198,8 +317,9 @@ $receipt = [ordered]@{
     graphics_profile = $resolvedProfile
     forge_installed = $forgeReady
     shader_installed = (Test-Path -LiteralPath (Join-Path $MinecraftDirectory 'shaderpacks\DMS 1.0.3.zip') -PathType Leaf)
+    managed_files = @($managedFiles.ToArray())
 }
-$receipt | ConvertTo-Json | Set-Content -LiteralPath $receiptPath -Encoding UTF8
+$receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
 Write-Host ''
 Write-Host "Ready: $MinecraftDirectory"
 if ($forgeReady) { Write-Host "Forge installed: $forgeVersionId" }
@@ -213,10 +333,21 @@ if ($LaunchTLauncher) {
         (Join-Path $env:APPDATA '.tlauncher\TLauncher.exe'),
         (Join-Path $env:LOCALAPPDATA 'TLauncher\TLauncher.exe')
     )
-    $tlauncher = @($candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })[0]
+    $tlauncher = $null
+    foreach ($candidate in $candidates) {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+        $signature = Get-AuthenticodeSignature -LiteralPath $candidate
+        if ($signature.Status -eq 'Valid' -and
+            $signature.SignerCertificate.Subject -match '(^|, )O=TLauncher Inc\.(,|$)') {
+            $tlauncher = $candidate
+            break
+        }
+        Write-Warning "TLauncher candidate was not started because its publisher signature could not be verified: $candidate"
+    }
     if ($tlauncher) {
-        Start-Process -FilePath $tlauncher -WindowStyle Normal
+        Start-Process -FilePath $tlauncher -WorkingDirectory (Split-Path -Parent $tlauncher) -WindowStyle Normal
+        Write-Host 'TLauncher opened. Select the game directory shown above and Forge 1.20.1 / 47.4.10 in its window.'
     } else {
-        Write-Warning 'TLauncher.exe was not found. Open your Minecraft launcher manually.'
+        Write-Warning 'A signed TLauncher.exe was not found. Open your Minecraft launcher manually.'
     }
 }
