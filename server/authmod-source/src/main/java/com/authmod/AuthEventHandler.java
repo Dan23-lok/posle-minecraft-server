@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 
 import java.util.Locale;
 import java.util.WeakHashMap;
+import java.util.function.Consumer;
 
 @Mod.EventBusSubscriber(modid = AuthMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class AuthEventHandler {
@@ -29,6 +30,9 @@ public class AuthEventHandler {
     private static final WeakHashMap<ServerPlayer, GameType> previousGameMode = new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer, String> greetedLocale = new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer, Long> loginDeadlines = new WeakHashMap<>();
+    private static LoginVerificationQueue loginVerifications;
+
+    enum LoginOutcome { SUCCESS, WRONG_PASSWORD, PASSWORD_CHANGED }
     private static long loginDeadline() {
         return System.currentTimeMillis() + AuthConfig.loginTimeoutSeconds() * 1000L;
     }
@@ -37,10 +41,15 @@ public class AuthEventHandler {
     public static void onServerStarting(ServerStartingEvent event) {
         AuthData.init();
         InviteCode.load();
+        loginVerifications = new LoginVerificationQueue(2, 8, PasswordHasher::verify);
     }
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
+        if (loginVerifications != null) {
+            loginVerifications.close();
+            loginVerifications = null;
+        }
         AuthData.save();
     }
 
@@ -65,6 +74,7 @@ public class AuthEventHandler {
     @SubscribeEvent
     public static void onPlayerQuit(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            if (loginVerifications != null) loginVerifications.forget(player.connection);
             sessions.leave(player.getUUID(), player);
             LoginLimiter.reset(player.connection);
             lastPosition.remove(player);
@@ -80,6 +90,7 @@ public class AuthEventHandler {
         if (!(event.getOriginal() instanceof ServerPlayer original)
                 || !(event.getEntity() instanceof ServerPlayer replacement)) return;
         if (!original.getUUID().equals(replacement.getUUID())) return;
+        if (loginVerifications != null) loginVerifications.forget(original.connection);
 
         if (!sessions.transfer(original.getUUID(), original, replacement)) {
             // Missing state starts locked; a stale clone must not displace a newer connection.
@@ -280,8 +291,45 @@ public class AuthEventHandler {
         return false;
     }
 
+    /**
+     * A PBKDF2 check runs only on a bounded worker. The result returns to the
+     * Minecraft server thread, where the session and stored hash are checked
+     * again before unlocking. Legacy plaintext entries retain their one-time
+     * migration path; wrong legacy guesses do not run PBKDF2.
+     */
+    static LoginVerificationQueue.Submission verifyLogin(ServerPlayer player, String password,
+                                                          Consumer<LoginOutcome> onResult) {
+        if (!sessions.isCurrent(player.getUUID(), player)) return LoginVerificationQueue.Submission.BUSY;
+        String username = player.getGameProfile().getName().toLowerCase(Locale.ROOT);
+        String stored = AuthData.getStoredPassword(username);
+        if (stored == null) return LoginVerificationQueue.Submission.BUSY;
+        if (PasswordHasher.isLegacy(stored)) {
+            onResult.accept(loginPlayer(player, password) ? LoginOutcome.SUCCESS : LoginOutcome.WRONG_PASSWORD);
+            return LoginVerificationQueue.Submission.ACCEPTED;
+        }
+        LoginVerificationQueue queue = loginVerifications;
+        if (queue == null) return LoginVerificationQueue.Submission.BUSY;
+        return queue.submit(player.connection, password, stored, player.server::execute, verified -> {
+            if (!sessions.isCurrent(player.getUUID(), player)
+                    || !player.connection.connection.isConnected()) return;
+            if (!stored.equals(AuthData.getStoredPassword(username))) {
+                onResult.accept(LoginOutcome.PASSWORD_CHANGED);
+                return;
+            }
+            if (!verified) {
+                onResult.accept(LoginOutcome.WRONG_PASSWORD);
+                return;
+            }
+            if (sessions.authenticate(player.getUUID(), player)) {
+                restorePlayer(player);
+                onResult.accept(LoginOutcome.SUCCESS);
+            }
+        });
+    }
+
     /** Повторная блокировка онлайн-игрока (например, после сброса пароля админом). */
     public static void forceRelock(ServerPlayer player) {
+        if (loginVerifications != null) loginVerifications.forget(player.connection);
         sessions.relock(player.getUUID(), player);
         LoginLimiter.reset(player.connection);
         loginDeadlines.put(player, loginDeadline());

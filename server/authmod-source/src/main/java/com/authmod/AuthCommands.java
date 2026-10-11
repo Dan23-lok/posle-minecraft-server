@@ -118,21 +118,14 @@ public class AuthCommands {
                                 return 0;
                             }
 
-                            if (AuthEventHandler.loginPlayer(player, password)) {
-                                LoginLimiter.reset(player.connection);
-                                player.sendSystemMessage(Lang.msg(player, "authmod.login.success"));
-                                player.sendSystemMessage(Lang.msg(player, "authmod.login.welcome"));
-                                return 1;
-                            } else {
-                                LoginLimiter.recordFailure(player.connection);
-                                if (LoginLimiter.isLocked(player.connection)) {
-                                    player.connection.disconnect(Lang.msg(player, "authmod.limiter.kicked"));
-                                } else {
-                                    player.sendSystemMessage(Lang.msg(player, "authmod.login.wrong_password"));
-                                    player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", LoginLimiter.remainingSeconds(player.connection)));
-                                }
-                                return 0;
+                            LoginVerificationQueue.Submission submission = AuthEventHandler.verifyLogin(
+                                    player, password, result -> finishLogin(player, result));
+                            if (submission == LoginVerificationQueue.Submission.ALREADY_PENDING) {
+                                player.sendSystemMessage(Lang.msg(player, "authmod.login.checking"));
+                            } else if (submission == LoginVerificationQueue.Submission.BUSY) {
+                                player.sendSystemMessage(Lang.msg(player, "authmod.login.busy"));
                             }
+                            return 0;
                         })
                 )
         );
@@ -216,6 +209,24 @@ public class AuthCommands {
         });
         player.sendSystemMessage(Lang.msg(player, "authmod.changepassword.success"));
         return 1;
+    }
+
+    private static void finishLogin(ServerPlayer player, AuthEventHandler.LoginOutcome result) {
+        if (result == AuthEventHandler.LoginOutcome.SUCCESS) {
+            LoginLimiter.reset(player.connection);
+            player.sendSystemMessage(Lang.msg(player, "authmod.login.success"));
+            player.sendSystemMessage(Lang.msg(player, "authmod.login.welcome"));
+        } else if (result == AuthEventHandler.LoginOutcome.PASSWORD_CHANGED) {
+            player.sendSystemMessage(Lang.msg(player, "authmod.login.changed"));
+        } else {
+            LoginLimiter.recordFailure(player.connection);
+            if (LoginLimiter.isLocked(player.connection)) {
+                player.connection.disconnect(Lang.msg(player, "authmod.limiter.kicked"));
+            } else {
+                player.sendSystemMessage(Lang.msg(player, "authmod.login.wrong_password"));
+                player.sendSystemMessage(Lang.msg(player, "authmod.limiter.cooldown", LoginLimiter.remainingSeconds(player.connection)));
+            }
+        }
     }
 
     private static int ownerCommand(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
