@@ -172,11 +172,15 @@ foreach ($project in $visualVersions.Keys) {
 
 $manifest = [ordered]@{
     pack = ([char[]]@(0x041F, 0x041E, 0x0421, 0x041B, 0x0415) -join '')
-    pack_version = '2026.10.11.6'
+    pack_version = '2026.10.11.7'
     minecraft_version = '1.20.1'
     forge_version = '47.4.10'
     java_major = 17
     server_address = 'cairo-worrisome.tun.ply.gg'
+    local_animation_patch = [ordered]@{
+        kind = 'born-in-chaos-1.7.5'
+        revision = 1
+    }
     forge_installer = [ordered]@{
         url = 'https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.10-installer.jar'
         sha256 = '1912760b4cb6b803d8a826de603c9076b1da71ec2765e9a1f8c1ca78f65278e3'

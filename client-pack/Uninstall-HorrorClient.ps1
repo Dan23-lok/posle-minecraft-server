@@ -65,6 +65,31 @@ if ($historicalManifest.pack -ne $manifest.pack -or
     $historicalManifest.pack_version -ne '2026.10.11.4') {
     throw 'The pinned historical client manifest has an unexpected identity.'
 }
+$animationPatchName = 'BornInChaosAnimationFix-local.zip'
+$animationPatchEnabled = $null -ne $manifest.local_animation_patch
+if ($animationPatchEnabled -and ($manifest.local_animation_patch.kind -cne 'born-in-chaos-1.7.5' -or
+    $manifest.local_animation_patch.revision -ne 1)) {
+    throw 'The local animation patch has an unexpected manifest identity.'
+}
+if ($manifest.pack_version -ceq '2026.10.11.7' -and -not $animationPatchEnabled) {
+    throw 'The published v7 pack requires the local animation correction.'
+}
+$knownBornHashes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+if ($animationPatchEnabled) {
+$bornEntries = @($manifest.files | Where-Object {
+    $_.project -eq 'born-in-chaos' -and $_.version -eq '1.7.5' -and
+        $_.folder -eq 'mods' -and $_.filename -eq 'born_in_chaos_[Forge]1.20.1_1.7.5.jar' -and
+        $_.hash_algorithm -eq 'SHA512'
+})
+if ($bornEntries.Count -ne 1) { throw 'The pinned Born in Chaos JAR identity is missing.' }
+foreach ($knownManifest in @($manifest, $historicalManifest)) {
+    foreach ($knownBorn in @($knownManifest.files | Where-Object {
+        $_.project -eq 'born-in-chaos' -and $_.version -eq '1.7.5' -and
+            $_.folder -eq 'mods' -and $_.filename -eq $bornEntries[0].filename -and
+            $_.hash_algorithm -eq 'SHA512'
+    })) { $knownBornHashes.Add($knownBorn.hash) | Out-Null }
+}
+}
 $knownFiles = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($knownManifest in @($manifest, $historicalManifest)) {
     foreach ($known in @($knownManifest.files)) {
@@ -121,7 +146,13 @@ foreach ($entry in $entries) {
     $relative = "$($entry.folder)/$($entry.filename)"
     if (-not $seen.Add($relative)) { throw "Duplicate managed file entry: $relative" }
     $key = "$($entry.folder)`0$($entry.filename)`0$($entry.hash_algorithm)`0$($entry.hash)"
-    if (-not $knownFiles.Contains($key)) {
+    if ($animationPatchEnabled -and $relative -ceq "resourcepacks/$animationPatchName") {
+        if ($entry.hash_algorithm -cne 'SHA256' -or $entry.generated_locally -cne $true -or
+            $entry.created_by_posle -cne $true -or $receipt.animation_patch_revision -ne 1 -or
+            -not $knownBornHashes.Contains([string]$receipt.animation_patch_source_sha512)) {
+            throw 'The generated animation patch has an invalid receipt identity.'
+        }
+    } elseif (-not $knownFiles.Contains($key)) {
         throw "The receipt entry is absent from the pinned client manifests: $relative"
     }
     $ownershipProperty = $entry.PSObject.Properties['created_by_posle']

@@ -45,6 +45,35 @@ if ($historicalManifest.pack -ne $manifest.pack -or
     $historicalManifest.pack_version -ne '2026.10.11.4') {
     throw 'The pinned historical client manifest has an unexpected identity.'
 }
+$animationPatchName = 'BornInChaosAnimationFix-local.zip'
+$animationPatchRevision = 1
+$animationPatchEnabled = $null -ne $manifest.local_animation_patch
+if ($animationPatchEnabled -and ($manifest.local_animation_patch.kind -cne 'born-in-chaos-1.7.5' -or
+    $manifest.local_animation_patch.revision -ne $animationPatchRevision)) {
+    throw 'The local animation patch has an unexpected manifest identity.'
+}
+if ($manifest.pack_version -ceq '2026.10.11.7' -and -not $animationPatchEnabled) {
+    throw 'The published v7 pack requires the local animation correction.'
+}
+$knownBornHashes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+if ($animationPatchEnabled) {
+$bornEntries = @($manifest.files | Where-Object {
+    $_.project -eq 'born-in-chaos' -and $_.version -eq '1.7.5' -and
+        $_.folder -eq 'mods' -and $_.filename -eq 'born_in_chaos_[Forge]1.20.1_1.7.5.jar' -and
+        $_.hash_algorithm -eq 'SHA512'
+})
+if ($bornEntries.Count -ne 1) {
+    throw 'Expected exactly one pinned Born in Chaos 1.7.5 JAR for the animation correction.'
+}
+$bornEntry = $bornEntries[0]
+foreach ($knownManifest in @($manifest, $historicalManifest)) {
+    foreach ($knownBorn in @($knownManifest.files | Where-Object {
+        $_.project -eq 'born-in-chaos' -and $_.version -eq '1.7.5' -and
+            $_.folder -eq 'mods' -and $_.filename -eq $bornEntry.filename -and
+            $_.hash_algorithm -eq 'SHA512'
+    })) { $knownBornHashes.Add($knownBorn.hash) | Out-Null }
+}
+}
 
 function Test-ValidFileName {
     param([string]$Name)
@@ -452,6 +481,7 @@ foreach ($knownManifest in @($manifest, $historicalManifest)) {
     }
 }
 $previousOwnership = @{}
+$previousGeneratedPatch = $null
 if ($previousReceipt) {
     if ($previousReceipt.pack -ne $manifest.pack -or
         $previousReceipt.minecraft_directory -isnot [string] -or
@@ -469,6 +499,17 @@ if ($previousReceipt) {
             throw 'The previous installation receipt contains an unsafe file entry.'
         }
         $key = "$($old.folder)`0$($old.filename)`0$($old.hash_algorithm)`0$($old.hash)"
+        if ($animationPatchEnabled -and $old.folder -eq 'resourcepacks' -and $old.filename -eq $animationPatchName) {
+            if ($null -ne $previousGeneratedPatch -or $old.hash_algorithm -cne 'SHA256' -or
+                $old.hash.Length -ne 64 -or $old.generated_locally -cne $true -or
+                $old.created_by_posle -cne $true -or
+                $previousReceipt.animation_patch_revision -ne $animationPatchRevision -or
+                -not $knownBornHashes.Contains([string]$previousReceipt.animation_patch_source_sha512)) {
+                throw 'The previous generated animation patch has an invalid identity.'
+            }
+            $previousGeneratedPatch = $old
+            continue
+        }
         if (-not $knownFiles.Contains($key) -or $previousOwnership.ContainsKey($key)) {
             throw 'The previous installation receipt has an unknown or duplicate file identity.'
         }
@@ -538,6 +579,65 @@ foreach ($entry in @($manifest.files)) {
         created_by_posle = ((-not $existedBefore) -or
             ($previousOwnership["$($entry.folder)`0$($entry.filename)`0$($entry.hash_algorithm)`0$($entry.hash)"] -eq $true))
     })
+}
+
+# Born in Chaos 1.7.5 ships five invalid animation coordinates (the string
+# "-"). Derive the correction from the verified download in staging before
+# changing the client. Creator-owned animation assets never enter the release.
+if ($animationPatchEnabled) {
+$bornCandidates = @($candidateFiles | Where-Object { $_.Entry.project -eq 'born-in-chaos' })
+if ($bornCandidates.Count -ne 1) { throw 'The verified Born in Chaos JAR is missing from client staging.' }
+$animationPatchPath = Join-Path (Join-Path $MinecraftDirectory 'resourcepacks') $animationPatchName
+$animationPatchRelativePath = "resourcepacks/$animationPatchName"
+Assert-NoReparsePoint -Path $animationPatchPath
+if (Test-Path -LiteralPath $animationPatchPath -PathType Container) {
+    throw "A directory occupies the animation patch path: $animationPatchPath"
+}
+$animationPatchExisted = Test-Path -LiteralPath $animationPatchPath -PathType Leaf
+if ($animationPatchExisted) {
+    if ($null -eq $previousGeneratedPatch) {
+        throw "An unowned animation pack exists at $animationPatchPath. Move it out before installing."
+    }
+    if (-not (Test-MatchingHash -Path $animationPatchPath -Algorithm 'SHA256' -Expected $previousGeneratedPatch.hash)) {
+        throw "The generated animation pack has changed: $animationPatchPath. Move it out before updating."
+    }
+}
+$generator = Join-Path $PSScriptRoot 'Build-BornInChaosAnimationFix.ps1'
+if (-not (Test-Path -LiteralPath $generator -PathType Leaf)) {
+    throw 'The local animation patch generator is missing beside the installer.'
+}
+$stagedAnimationPatch = Join-Path $stageRoot $animationPatchName
+& $generator -BornJarPath $bornCandidates[0].Source -OutputZip $stagedAnimationPatch -ExpectedSha512 $bornEntry.hash | Out-Null
+if (-not (Test-Path -LiteralPath $stagedAnimationPatch -PathType Leaf)) {
+    throw 'The local animation patch was not generated in staging.'
+}
+$animationPatchHash = (Get-FileHash -LiteralPath $stagedAnimationPatch -Algorithm SHA256).Hash
+$animationPatchCurrent = $animationPatchExisted -and
+    (Test-MatchingHash -Path $animationPatchPath -Algorithm 'SHA256' -Expected $animationPatchHash)
+$animationPatchReplacement = $animationPatchExisted -and -not $animationPatchCurrent
+if ($targetPaths.ContainsKey($animationPatchRelativePath)) {
+    throw 'The generated animation patch conflicts with a manifest file.'
+}
+$targetPaths[$animationPatchRelativePath] = $true
+$animationPatchEntry = [pscustomobject]@{
+    folder = 'resourcepacks'; filename = $animationPatchName
+    hash_algorithm = 'SHA256'; hash = $animationPatchHash
+}
+$candidateFiles.Add([pscustomobject]@{
+    Entry = $animationPatchEntry; Destination = $animationPatchPath; Source = $stagedAnimationPatch
+    ExistedBefore = $animationPatchCurrent; ReplacedBefore = $animationPatchReplacement
+    PreviousHash = if ($previousGeneratedPatch) { $previousGeneratedPatch.hash } else { $null }
+    RelativePath = $animationPatchRelativePath
+})
+$managedFiles.Add([ordered]@{
+    folder = 'resourcepacks'
+    filename = $animationPatchName
+    hash_algorithm = 'SHA256'
+    hash = $animationPatchHash
+    default_enabled = $true
+    generated_locally = $true
+    created_by_posle = $true
+})
 }
 
 # The earliest migration had no ownership field or pinned manifest. Its file
@@ -663,6 +763,7 @@ for ($index = 0; $index -lt $settingsPaths.Count; $index++) {
     $settingsBackups.Add([pscustomobject]@{ Path = $path; Backup = $backup; Existed = $existed })
 }
 $createdFiles = New-Object 'System.Collections.Generic.List[object]'
+$replacedFiles = New-Object 'System.Collections.Generic.List[object]'
 $obsoleteBackups = New-Object 'System.Collections.Generic.List[object]'
 $temporaryFiles = New-Object 'System.Collections.Generic.List[string]'
 try {
@@ -671,7 +772,9 @@ try {
         $destination = $candidate.Destination
         $parent = Split-Path -Parent $destination
         Assert-NoReparsePoint -Path $destination
-        if (Test-Path -LiteralPath $destination) { throw "Client file appeared during update: $destination" }
+        if (-not $candidate.ReplacedBefore -and (Test-Path -LiteralPath $destination)) {
+            throw "Client file appeared during update: $destination"
+        }
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
         $temporary = Join-Path $parent ('.posle-' + [Guid]::NewGuid().ToString('N') + '.tmp')
         $temporaryFiles.Add($temporary)
@@ -680,9 +783,31 @@ try {
             throw "Copy failed hash verification: $($candidate.Entry.filename)"
         }
         Assert-NoReparsePoint -Path $destination
-        if (Test-Path -LiteralPath $destination) { throw "Client file appeared during update: $destination" }
-        Move-Item -LiteralPath $temporary -Destination $destination
-        $createdFiles.Add($candidate)
+        if ($candidate.ReplacedBefore) {
+            if ($candidate.RelativePath -cne $animationPatchRelativePath -or
+                -not (Test-MatchingHash -Path $destination -Algorithm 'SHA256' -Expected $candidate.PreviousHash)) {
+                throw "The generated animation patch changed during update: $destination"
+            }
+            $backup = Join-Path $stageRoot 'previous-animation-patch.backup'
+            Copy-Item -LiteralPath $destination -Destination $backup
+            if (-not (Test-MatchingHash -Path $backup -Algorithm 'SHA256' -Expected $candidate.PreviousHash)) {
+                throw 'Could not back up the previous animation patch.'
+            }
+            $replacedFiles.Add([pscustomobject]@{
+                Destination = $destination; Backup = $backup; NewHash = $candidate.Entry.hash
+                PreviousHash = $candidate.PreviousHash; RelativePath = $candidate.RelativePath
+            })
+            $localBackup = Join-Path $parent ('.posle-' + [Guid]::NewGuid().ToString('N') + '.bak')
+            $temporaryFiles.Add($localBackup)
+            [IO.File]::Replace($temporary, $destination, $localBackup)
+            if (Test-Path -LiteralPath $localBackup -PathType Leaf) {
+                Remove-Item -LiteralPath $localBackup -Force
+            }
+        } else {
+            if (Test-Path -LiteralPath $destination) { throw "Client file appeared during update: $destination" }
+            Move-Item -LiteralPath $temporary -Destination $destination
+            $createdFiles.Add($candidate)
+        }
     }
     foreach ($obsolete in $obsoleteFiles) {
         $path = $obsolete.Path
@@ -749,6 +874,12 @@ if ($refreshResourcePacks -and ($defaultResourcePacks.Count -gt 0 -or $previousR
     $addIds = if ($NoResourcePack.IsPresent) { @() } else { $defaultIds }
     Update-ResourcePackSelection -Path (Join-Path $MinecraftDirectory 'options.txt') -RemoveIds $removeIds -AddIds $addIds
 }
+# Keep the tiny parser correction active even with -NoResourcePack; that switch
+# disables optional visual packs, while this one repairs four mob animations.
+if ($animationPatchEnabled) {
+    Update-ResourcePackSelection -Path (Join-Path $MinecraftDirectory 'options.txt') `
+        -RemoveIds @("file/$animationPatchName") -AddIds @("file/$animationPatchName")
+}
 
 # Existing files were checked during preflight; recheck them and newly copied
 # files immediately before claiming a successful installation in the receipt.
@@ -772,6 +903,10 @@ $receipt = [ordered]@{
     shader_installed = (Test-Path -LiteralPath (Join-Path $MinecraftDirectory 'shaderpacks\DMS 1.0.3.zip') -PathType Leaf)
     managed_files = @($managedFiles.ToArray())
 }
+if ($animationPatchEnabled) {
+    $receipt['animation_patch_revision'] = $animationPatchRevision
+    $receipt['animation_patch_source_sha512'] = $bornEntry.hash
+}
 $receiptTemporary = Join-Path $MinecraftDirectory ('.posle-receipt-' + [Guid]::NewGuid().ToString('N') + '.tmp')
 $temporaryFiles.Add($receiptTemporary)
 $receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $receiptTemporary -Encoding UTF8
@@ -790,6 +925,21 @@ Move-Item -LiteralPath $receiptTemporary -Destination $receiptPath -Force
                 Remove-Item -LiteralPath $created.Destination -Force
             }
         } catch { $rollbackErrors.Add("$($created.RelativePath): $($_.Exception.Message)") }
+    }
+    foreach ($replaced in $replacedFiles) {
+        try {
+            Assert-NoReparsePoint -Path $replaced.Destination
+            if (Test-MatchingHash -Path $replaced.Destination -Algorithm 'SHA256' -Expected $replaced.PreviousHash) {
+                continue
+            }
+            if (-not (Test-MatchingHash -Path $replaced.Destination -Algorithm 'SHA256' -Expected $replaced.NewHash)) {
+                throw 'Replacement changed during rollback; preserved it for manual recovery.'
+            }
+            Copy-Item -LiteralPath $replaced.Backup -Destination $replaced.Destination -Force
+            if (-not (Test-MatchingHash -Path $replaced.Destination -Algorithm 'SHA256' -Expected $replaced.PreviousHash)) {
+                throw 'Restored animation patch failed hash verification.'
+            }
+        } catch { $rollbackErrors.Add("$($replaced.RelativePath): $($_.Exception.Message)") }
     }
     foreach ($retired in $obsoleteBackups) {
         try {
