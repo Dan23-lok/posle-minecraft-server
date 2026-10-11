@@ -60,8 +60,8 @@ if ($animationPatchEnabled -and ($manifest.local_animation_patch.kind -cne 'born
     $manifest.local_animation_patch.revision -ne $animationPatchRevision)) {
     throw 'The local animation patch has an unexpected manifest identity.'
 }
-if ($manifest.pack_version -ceq '2026.10.11.7' -and -not $animationPatchEnabled) {
-    throw 'The published v7 pack requires the local animation correction.'
+if ($manifest.pack_version -cin @('2026.10.11.7', '2026.10.11.8') -and -not $animationPatchEnabled) {
+    throw 'This pack requires the local animation correction.'
 }
 $knownBornHashes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 if ($animationPatchEnabled) {
@@ -390,7 +390,7 @@ function Update-KeyValueFile {
     foreach ($line in $existing) {
         $position = $line.IndexOf($Separator)
         if ($position -gt 0) {
-            $key = $line.Substring(0, $position)
+            $key = $line.Substring(0, $position).Trim()
             if ($Values.Contains($key)) {
                 if (-not $written.ContainsKey($key)) { $result.Add("$key$Separator$($Values[$key])") }
                 $written[$key] = $true
@@ -404,6 +404,58 @@ function Update-KeyValueFile {
     }
     New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force | Out-Null
     [System.IO.File]::WriteAllLines($Path, $result.ToArray(), (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function Resolve-EffectiveShaderState {
+    param([string]$OculusPath, [switch]$ApplyPlannedSetting, [string]$PlannedValue,
+        [string]$ShaderPackDirectory, [string[]]$ManagedShaderNames)
+    if ($ApplyPlannedSetting) {
+        if ($PlannedValue -cnotin @('true', 'false')) { throw 'Invalid planned Oculus shader state.' }
+        return ($PlannedValue -ceq 'true')
+    }
+    if (-not (Test-Path -LiteralPath $OculusPath -PathType Leaf)) {
+        throw 'Existing Oculus settings are missing. Rerun with -GraphicsProfile Auto to choose a new graphics plan.'
+    }
+    $settings = @(Get-Content -LiteralPath $OculusPath -Encoding UTF8 |
+        Where-Object { $_ -match '^\s*enableShaders\s*=' })
+    if ($settings.Count -ne 1) {
+        throw 'Existing Oculus settings have no unique enableShaders value. Repair the setting or rerun with -GraphicsProfile Auto.'
+    }
+    $value = ($settings[0] -split '=', 2)[1].Trim()
+    if ($value -cnotin @('true', 'false')) {
+        throw 'Existing Oculus enableShaders value is invalid. Repair it or rerun with -GraphicsProfile Auto.'
+    }
+    $enabled = $value -ceq 'true'
+    if ($enabled) {
+        $packLines = @(Get-Content -LiteralPath $OculusPath -Encoding UTF8 |
+            Where-Object { $_ -match '^\s*shaderPack\s*=' })
+        if ($packLines.Count -ne 1) {
+            throw 'Enabled Oculus shaders require one selected shader pack. Set shaderPack or rerun with -GraphicsProfile Auto.'
+        }
+        $packName = ($packLines[0] -split '=', 2)[1].Trim()
+        if (-not (Test-ValidFileName -Name $packName) -or $packName -notmatch '\.zip$') {
+            throw 'Enabled Oculus shaders require a valid selected shader pack ZIP.'
+        }
+        $packPath = Join-Path $ShaderPackDirectory $packName
+        Assert-NoReparsePoint -Path $packPath
+        if ($packName -notin $ManagedShaderNames -and
+            -not (Test-Path -LiteralPath $packPath -PathType Leaf)) {
+            throw 'The selected custom shader pack is missing. Install it or rerun with -GraphicsProfile Auto.'
+        }
+    }
+    return $enabled
+}
+
+function Test-SelectedClientFile {
+    param($Entry, [switch]$ShadersEnabled, [switch]$NoShader, [switch]$NoResourcePack)
+    $condition = [string]$Entry.install_when
+    if ($condition -and $condition -cne 'shaders_disabled') {
+        throw "Unknown client file condition: $condition"
+    }
+    if ($NoShader -and $Entry.folder -eq 'shaderpacks') { return $false }
+    if ($NoResourcePack -and $Entry.folder -eq 'resourcepacks') { return $false }
+    if ($condition -ceq 'shaders_disabled' -and $ShadersEnabled) { return $false }
+    return $true
 }
 
 function Update-ResourcePackSelection {
@@ -591,22 +643,50 @@ try {
 $hardware = Get-ClientHardware
 $graphicsPolicyMigration = $previousInstall -and
     ([int]$previousReceipt.graphics_policy_revision -lt $graphicsPolicyRevision)
+$explicitGraphicsProfile = $PSBoundParameters.ContainsKey('GraphicsProfile')
+$effectiveNoShader = if ($PSBoundParameters.ContainsKey('NoShader')) {
+    $NoShader.IsPresent
+} elseif ($explicitGraphicsProfile -or $AllowShaderUnderMemoryPressure.IsPresent) {
+    $false
+} else {
+    $previousReceipt.no_shader -eq $true
+}
+$effectiveNoResourcePack = if ($PSBoundParameters.ContainsKey('NoResourcePack')) {
+    $NoResourcePack.IsPresent
+} else {
+    $previousReceipt.no_resource_pack -eq $true
+}
 $allowShaderUnderMemoryPressure = $AllowShaderUnderMemoryPressure.IsPresent -or
-    ($previousReceipt.allow_shader_under_memory_pressure -eq $true -and -not $NoShader.IsPresent)
+    ($previousReceipt.allow_shader_under_memory_pressure -eq $true -and -not $effectiveNoShader)
 $resolvedProfile = Resolve-GraphicsProfile -RequestedProfile $GraphicsProfile -PreviousReceipt $previousReceipt `
-    -Hardware $hardware -ExplicitChoice:($PSBoundParameters.ContainsKey('GraphicsProfile'))
-$graphicsProfileSource = if ($PSBoundParameters.ContainsKey('GraphicsProfile')) {
+    -Hardware $hardware -ExplicitChoice:$explicitGraphicsProfile
+$graphicsProfileSource = if ($explicitGraphicsProfile) {
     if ($GraphicsProfile -eq 'Auto') { 'auto' } else { 'manual' }
 } elseif ($previousReceipt.graphics_profile_source -in @('auto', 'manual', 'legacy')) {
     $previousReceipt.graphics_profile_source
 } elseif ($previousInstall) { 'legacy' } else { 'auto' }
+$oculusPath = Join-Path $MinecraftDirectory 'config\oculus.properties'
+Assert-NoReparsePoint -Path $oculusPath
+$applyVideoProfile = (-not $previousInstall) -or $explicitGraphicsProfile
+$applyOculus = $applyVideoProfile -or $PSBoundParameters.ContainsKey('NoShader') -or
+    $AllowShaderUnderMemoryPressure.IsPresent -or
+    (-not (Test-Path -LiteralPath $oculusPath -PathType Leaf))
+$graphicsPlan = Get-GraphicsPlan -Profile $resolvedProfile -Hardware $hardware -NoShader:$effectiveNoShader `
+    -AllowShaderUnderMemoryPressure:$allowShaderUnderMemoryPressure
+$effectiveShaderEnabled = Resolve-EffectiveShaderState -OculusPath $oculusPath `
+    -ApplyPlannedSetting:$applyOculus -PlannedValue $graphicsPlan.OculusSettings.enableShaders `
+    -ShaderPackDirectory (Join-Path $MinecraftDirectory 'shaderpacks') `
+    -ManagedShaderNames @($manifest.files | Where-Object folder -eq 'shaderpacks' | ForEach-Object filename)
+if ($effectiveNoShader -and $effectiveShaderEnabled) {
+    throw 'The saved -NoShader choice conflicts with enabled Oculus shaders. Rerun with -NoShader or explicitly clear the opt-out.'
+}
 Write-Host "Graphics profile: $resolvedProfile"
-if ($graphicsPolicyMigration -and -not $PSBoundParameters.ContainsKey('GraphicsProfile')) {
+if ($graphicsPolicyMigration -and -not $explicitGraphicsProfile) {
     Write-Warning 'Graphics policy updated. Existing video and Oculus settings were preserved. Run with -GraphicsProfile Auto to apply the new hardware policy.'
 }
 if ($hardware -and $hardware.AvailableRamGb -ge 0 -and $hardware.AvailableRamGb -lt 4 -and
-    -not $NoShader.IsPresent -and -not $allowShaderUnderMemoryPressure) {
-    if ($graphicsPolicyMigration -and -not $PSBoundParameters.ContainsKey('GraphicsProfile')) {
+    -not $effectiveNoShader -and -not $allowShaderUnderMemoryPressure) {
+    if ($graphicsPolicyMigration -and -not $explicitGraphicsProfile) {
         Write-Warning 'Less than 4 GiB RAM is free; the previous shader choice remains unchanged. Close other apps and rerun with -GraphicsProfile Auto to apply the new safety rule.'
     } else {
         Write-Warning 'Less than 4 GiB RAM is currently free: DMS starts disabled. Close other apps and rerun with -GraphicsProfile Auto, or opt in with -AllowShaderUnderMemoryPressure if your GPU supports DMS.'
@@ -618,8 +698,8 @@ $targetPaths = @{}
 foreach ($entry in @($manifest.files)) {
     if ($entry.folder -notin $allowedFolders) { throw "Unexpected folder: $($entry.folder)" }
     if (-not (Test-ValidFileName -Name $entry.filename)) { throw "Invalid file name: $($entry.filename)" }
-    if ($NoShader -and $entry.folder -eq 'shaderpacks') { continue }
-    if ($NoResourcePack -and $entry.folder -eq 'resourcepacks') { continue }
+    if (-not (Test-SelectedClientFile -Entry $entry -ShadersEnabled:$effectiveShaderEnabled `
+            -NoShader:$effectiveNoShader -NoResourcePack:$effectiveNoResourcePack)) { continue }
     $destination = Join-Path (Join-Path $MinecraftDirectory $entry.folder) $entry.filename
     Assert-NoReparsePoint -Path $destination
     Get-AllowedDownloadUri -Uri ([Uri]$entry.url) -AllowedHosts $allowedHosts | Out-Null
@@ -905,14 +985,7 @@ try {
         Write-Host "Removed obsolete pack file: $($obsolete.RelativePath)"
     }
 
-$applyVideoProfile = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
-    $previousReceipt.pack_version -ne $manifest.pack_version
-$applyOculus = $applyVideoProfile -or $NoShader.IsPresent -or
-    $AllowShaderUnderMemoryPressure.IsPresent -or
-    ($previousReceipt.no_shader -eq $true -and -not $NoShader.IsPresent)
 if ($applyVideoProfile -or $applyOculus) {
-    $graphicsPlan = Get-GraphicsPlan -Profile $resolvedProfile -Hardware $hardware -NoShader:$NoShader `
-        -AllowShaderUnderMemoryPressure:$allowShaderUnderMemoryPressure
     if ($applyVideoProfile) {
         Update-KeyValueFile -Path (Join-Path $MinecraftDirectory 'options.txt') -Separator ':' -Values $graphicsPlan.VideoSettings
     }
@@ -940,16 +1013,16 @@ foreach ($pack in $defaultResourcePacks) {
 $obsoleteResourcePacks = @($previousResourcePacks | Where-Object {
     -not $targetPaths.ContainsKey("resourcepacks/$($_.filename)")
 })
-$refreshResourcePacks = (-not $previousInstall) -or $PSBoundParameters.ContainsKey('GraphicsProfile') -or
-    $NoResourcePack.IsPresent -or $newDefaultResourcePack -or $obsoleteResourcePacks.Count -gt 0
+$refreshResourcePacks = (-not $previousInstall) -or $explicitGraphicsProfile -or
+    $PSBoundParameters.ContainsKey('NoResourcePack') -or $newDefaultResourcePack -or $obsoleteResourcePacks.Count -gt 0
 if ($refreshResourcePacks -and ($defaultResourcePacks.Count -gt 0 -or $previousResourcePacks.Count -gt 0)) {
     $removeIds = @($previousResourcePacks | Where-Object {
-        $_.default_enabled -eq $true -or $NoResourcePack.IsPresent -or
+        $_.default_enabled -eq $true -or $effectiveNoResourcePack -or
             -not $targetPaths.ContainsKey("resourcepacks/$($_.filename)")
     } | ForEach-Object { "file/$($_.filename)" })
     $defaultIds = @($defaultResourcePacks | ForEach-Object { "file/$($_.filename)" })
     $removeIds += $defaultIds
-    $addIds = if ($NoResourcePack.IsPresent) { @() } else { $defaultIds }
+    $addIds = if ($effectiveNoResourcePack) { @() } else { $defaultIds }
     Update-ResourcePackSelection -Path (Join-Path $MinecraftDirectory 'options.txt') -RemoveIds $removeIds -AddIds $addIds
 }
 # Keep the tiny parser correction active even with -NoResourcePack; that switch
@@ -978,9 +1051,10 @@ $receipt = [ordered]@{
     graphics_profile = $resolvedProfile
     graphics_profile_source = $graphicsProfileSource
     graphics_policy_revision = $graphicsPolicyRevision
-    no_shader = $NoShader.IsPresent
+    no_shader = [bool]$effectiveNoShader
+    shader_enabled = [bool]$effectiveShaderEnabled
     allow_shader_under_memory_pressure = [bool]$allowShaderUnderMemoryPressure
-    no_resource_pack = $NoResourcePack.IsPresent
+    no_resource_pack = [bool]$effectiveNoResourcePack
     forge_installed = $forgeReady
     shader_installed = (@($managedFiles | Where-Object {
         $_.folder -eq 'shaderpacks' -and $_.filename -eq 'DMS 1.0.3.zip'

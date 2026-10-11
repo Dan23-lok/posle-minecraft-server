@@ -71,7 +71,7 @@ function Get-VerifiedFile {
         minecraft_version='1.20.1'; forge_version='47.4.10'; files=@() }) |
         ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $package 'historical\client-modpack-2026.10.11.4.json') -Encoding UTF8
 
-    & $installer -MinecraftDirectory $client -SkipForge | Out-Null
+    & $installer -MinecraftDirectory $client -SkipForge -NoShader | Out-Null
     $receiptPath = Join-Path $client 'horror-apocalypse-install.json'
     $receipt = Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $preexisting = @($receipt.managed_files | Where-Object filename -eq 'preexisting.jar')[0]
@@ -102,7 +102,7 @@ function Get-VerifiedFile {
     # 5.1 defaults to the local code page unless the installer opts into UTF-8.
     [IO.File]::WriteAllText((Join-Path $legacyClient 'horror-apocalypse-install.json'),
         ($legacyReceipt | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($false)))
-    & $installer -MinecraftDirectory $legacyClient -SkipForge | Out-Null
+    & $installer -MinecraftDirectory $legacyClient -SkipForge -NoShader | Out-Null
     $legacyAfter = Get-Content -LiteralPath (Join-Path $legacyClient 'horror-apocalypse-install.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True (@($legacyAfter.managed_files | Where-Object filename -eq 'preexisting.jar')[0].created_by_posle -eq $false) 'legacy unknown ownership was promoted to owned'
     Assert-True (@($legacyAfter.managed_files | Where-Object filename -eq 'created.jar')[0].created_by_posle -eq $true) 'new file after legacy receipt not owned'

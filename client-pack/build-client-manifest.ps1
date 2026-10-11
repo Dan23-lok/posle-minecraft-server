@@ -69,6 +69,8 @@ foreach ($name in $selectedServerProjects.Keys) {
 
 $modrinthVersions = [ordered]@{
     'powered-flashlight' = '1tpZnh9i'
+    'dynamic-flashlight' = 'dkQtiEhc'
+    'true-darkness-biomes' = '39nowrB1'
     'immersive-aircraft' = 'aDUlOdzA'
     'civilian-aviation' = 'ClkJoKdV'
     'not-enough-animations' = 'kGjMleOz'
@@ -89,7 +91,11 @@ foreach ($project in $modrinthVersions.Keys) {
     $file = @($files | Where-Object { $_.primary -eq $true })[0]
     if (-not $file) { $file = $files[0] }
     if (-not $file -or -not $file.hashes.sha512) { throw "Missing file/hash for $project" }
-    [void]$mods.Add([ordered]@{
+    if ($project -in @('dynamic-flashlight', 'true-darkness-biomes') -and
+        ('1.20.1' -notin @($v.game_versions) -or 'forge' -notin @($v.loaders))) {
+        throw "Not a Forge 1.20.1 asset: $project"
+    }
+    $modEntry = [ordered]@{
         project = $project
         version = $v.version_number
         filename = $file.filename
@@ -98,7 +104,9 @@ foreach ($project in $modrinthVersions.Keys) {
         hash = $file.hashes.sha512.ToLowerInvariant()
         folder = 'mods'
         source_page = "https://modrinth.com/mod/$project"
-    })
+    }
+    if ($project -eq 'true-darkness-biomes') { $modEntry.install_when = 'shaders_disabled' }
+    [void]$mods.Add($modEntry)
 }
 
 [void]$mods.Add([ordered]@{
@@ -172,7 +180,7 @@ foreach ($project in $visualVersions.Keys) {
 
 $manifest = [ordered]@{
     pack = ([char[]]@(0x041F, 0x041E, 0x0421, 0x041B, 0x0415) -join '')
-    pack_version = '2026.10.11.7'
+    pack_version = '2026.10.11.8'
     minecraft_version = '1.20.1'
     forge_version = '47.4.10'
     java_major = 17

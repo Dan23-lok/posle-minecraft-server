@@ -235,8 +235,8 @@ try {
     if ([IO.File]::Exists($allowedDestination)) { [IO.File]::Delete($allowedDestination) }
 }
 
-# A normal rerun after -NoShader must reapply Oculus settings even when the
-# manifest version has not changed. Use a copied installer and an existing
+# A normal rerun after -NoShader must preserve that opt-out even when the
+# manifest version has changed. Use a copied installer and an existing
 # fixture file so this regression test cannot download files or alter a real game.
 $scratchParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $scratch = Join-Path $scratchParent ('posle-graphics-' + [Guid]::NewGuid().ToString('N'))
@@ -368,26 +368,34 @@ try {
         renderDistance = '13'
         fov = '0.7'
     })
-    # The stale marker makes graphics reapplication observable on all GPUs.
-    [IO.File]::WriteAllText($oculusPath, "enableShaders=stale`n")
     & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge | Out-Null
     $actual = @(Get-Content -LiteralPath $oculusPath | Where-Object { $_ -like 'enableShaders=*' })[0]
-    if ($actual -notin @('enableShaders=true', 'enableShaders=false')) {
-        throw "normal rerun after NoShader did not reapply Oculus settings: '$actual'"
-    }
     $recoveredReceipt = Get-Content -LiteralPath $scratchReceipt -Raw | ConvertFrom-Json
     $expectedPlan = Get-GraphicsPlan -Profile $recoveredReceipt.graphics_profile -Hardware (Get-ClientHardware)
-    Assert-Equal ("enableShaders=" + $expectedPlan.OculusSettings.enableShaders) $actual 'normal rerun restores intended shader state'
-    Assert-Equal $false $recoveredReceipt.no_shader 'normal rerun clears NoShader intent'
+    Assert-Equal 'enableShaders=false' $actual 'normal rerun keeps NoShader Oculus state'
+    Assert-Equal $true $recoveredReceipt.no_shader 'normal rerun keeps NoShader intent'
     Assert-Equal 'renderDistance:13' (
         @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'renderDistance:*' })[0]
     ) 'shader toggle preserves player render distance'
     Assert-Equal 'fov:0.7' (
         @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'fov:*' })[0]
     ) 'shader toggle preserves player FOV'
-    [IO.File]::WriteAllText($oculusPath, "enableShaders=user-choice`n")
+    [IO.File]::WriteAllText($oculusPath, "enableShaders=invalid`n")
+    $invalidRejected = $false
+    try { & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge | Out-Null }
+    catch { $invalidRejected = $true }
+    Assert-Equal $true $invalidRejected 'invalid manual shader state rejected before update'
+    & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge -GraphicsProfile Auto | Out-Null
+    $recoveredReceipt = Get-Content -LiteralPath $scratchReceipt -Raw | ConvertFrom-Json
+    Assert-Equal $false $recoveredReceipt.no_shader 'explicit Auto clears NoShader intent'
+    Assert-Equal ("enableShaders=" + $expectedPlan.OculusSettings.enableShaders) (
+        @(Get-Content -LiteralPath $oculusPath | Where-Object { $_ -like 'enableShaders=*' })[0]
+    ) 'explicit Auto repairs invalid Oculus state'
+    [IO.Directory]::CreateDirectory((Join-Path $scratchClient 'shaderpacks')) | Out-Null
+    [IO.File]::WriteAllText((Join-Path $scratchClient 'shaderpacks\DMS 1.0.3.zip'), 'shader fixture')
+    [IO.File]::WriteAllText($oculusPath, "shaderPack=DMS 1.0.3.zip`nenableShaders=true`n")
     & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge | Out-Null
-    Assert-Equal 'enableShaders=user-choice' (
+    Assert-Equal 'enableShaders=true' (
         @(Get-Content -LiteralPath $oculusPath | Where-Object { $_ -like 'enableShaders=*' })[0]
     ) 'later same-version rerun preserves a manual graphics change'
     Update-KeyValueFile -Path $clientOptions -Separator ':' -Values ([ordered]@{ renderDistance = '11' })
@@ -395,7 +403,7 @@ try {
     Assert-Equal 'renderDistance:11' (
         @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'renderDistance:*' })[0]
     ) 'resource-pack toggle preserves player render distance'
-    Assert-Equal 'enableShaders=user-choice' (
+    Assert-Equal 'enableShaders=true' (
         @(Get-Content -LiteralPath $oculusPath | Where-Object { $_ -like 'enableShaders=*' })[0]
     ) 'resource-pack toggle does not change Oculus'
     # Simulate a v9 receipt: the new policy cannot infer whether the old tier
@@ -406,7 +414,7 @@ try {
     $legacyReceipt.PSObject.Properties.Remove('graphics_profile_source')
     $legacyReceipt.PSObject.Properties.Remove('allow_shader_under_memory_pressure')
     $legacyReceipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $scratchReceipt -Encoding UTF8
-    [IO.File]::WriteAllText($oculusPath, "enableShaders=user-choice`n")
+    [IO.File]::WriteAllText($oculusPath, "shaderPack=DMS 1.0.3.zip`nenableShaders=true`n")
     & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge | Out-Null
     $migratedReceipt = Get-Content -LiteralPath $scratchReceipt -Raw | ConvertFrom-Json
     Assert-Equal 2 $migratedReceipt.graphics_policy_revision 'v9 graphics policy migrated'
@@ -417,7 +425,7 @@ try {
     Assert-Equal 'fov:0.7' (
         @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'fov:*' })[0]
     ) 'v9 migration preserves player FOV'
-    Assert-Equal 'enableShaders=user-choice' (
+    Assert-Equal 'enableShaders=true' (
         @(Get-Content -LiteralPath $oculusPath | Where-Object { $_ -like 'enableShaders=*' })[0]
     ) 'v9 migration preserves manual Oculus choice'
     $policyBackups = @(Get-ChildItem -LiteralPath (Split-Path -Parent $oculusPath) `
@@ -427,15 +435,19 @@ try {
     $testManifest | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath (Join-Path $scratchFull 'client-modpack.json') -Encoding UTF8
     & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge | Out-Null
-    Assert-Equal ("renderDistance:" + $expectedPlan.VideoSettings.renderDistance) (
+    Assert-Equal 'renderDistance:11' (
         @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'renderDistance:*' })[0]
-    ) 'pack-version update reapplies owned video settings'
+    ) 'pack-version update preserves player render distance'
     Assert-Equal 'fov:0.7' (
         @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'fov:*' })[0]
     ) 'pack-version update preserves unrelated player FOV'
     Assert-Equal 'updated-version' (
         (Get-Content -LiteralPath $scratchReceipt -Raw | ConvertFrom-Json).pack_version
     ) 'pack-version update recorded'
+    & $copiedInstaller -MinecraftDirectory $scratchClient -SkipForge -GraphicsProfile Auto | Out-Null
+    Assert-Equal ("renderDistance:" + $expectedPlan.VideoSettings.renderDistance) (
+        @(Get-Content -LiteralPath $clientOptions | Where-Object { $_ -like 'renderDistance:*' })[0]
+    ) 'explicit Auto reapplies hardware plan'
 } finally {
     if (Test-Path -LiteralPath $scratchFull) {
         if (-not $scratchFull.StartsWith($scratchParent, [StringComparison]::OrdinalIgnoreCase)) {

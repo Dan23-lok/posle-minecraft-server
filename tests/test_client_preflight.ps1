@@ -57,9 +57,15 @@ function New-CasePackage {
 }
 
 function Assert-FailedInstall {
-    param([string]$Installer, [string]$Client, [string]$Case)
+    param([string]$Installer, [string]$Client, [string]$Case, [switch]$ExplicitGraphicsProfile)
     $failed = $false
-    try { & $Installer -MinecraftDirectory $Client -SkipForge | Out-Null }
+    try {
+        if ($ExplicitGraphicsProfile) {
+            & $Installer -MinecraftDirectory $Client -SkipForge -GraphicsProfile Auto | Out-Null
+        } else {
+            & $Installer -MinecraftDirectory $Client -SkipForge | Out-Null
+        }
+    }
     catch { $failed = $true }
     Assert-True $failed $Case
 }
@@ -252,7 +258,8 @@ function Update-KeyValueFile {
     $receiptPath = Join-Path $client 'horror-apocalypse-install.json'
     $receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
     $receiptBefore = [IO.File]::ReadAllBytes($receiptPath)
-    Assert-FailedInstall -Installer (Join-Path $package 'Install-HorrorClient.ps1') -Client $client -Case 'commit failure did not fail'
+    Assert-FailedInstall -Installer (Join-Path $package 'Install-HorrorClient.ps1') -Client $client `
+        -Case 'commit failure did not fail' -ExplicitGraphicsProfile
     Assert-True (Test-Path -LiteralPath $oldPath) 'rollback lost obsolete owned mod'
     Assert-True ((Get-FileHash -LiteralPath $oldPath -Algorithm SHA256).Hash -eq $oldEntry.hash) 'rollback restored wrong old mod'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $client 'mods\pehkui.jar'))) 'rollback retained new mod'
@@ -289,7 +296,7 @@ function Update-KeyValueFile {
     $receipt.minecraft_directory = $client
     $receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $client 'horror-apocalypse-install.json') -Encoding UTF8
     $errorMessage = $null
-    try { & $forensicInstaller -MinecraftDirectory $client -SkipForge | Out-Null }
+    try { & $forensicInstaller -MinecraftDirectory $client -SkipForge -GraphicsProfile Auto | Out-Null }
     catch { $errorMessage = $_.Exception.Message }
     Assert-True ([bool]$errorMessage) 'rollback forensic fault was not triggered'
     Assert-True ($errorMessage -match 'Rollback needs manual repair:') 'rollback failure was not reported'

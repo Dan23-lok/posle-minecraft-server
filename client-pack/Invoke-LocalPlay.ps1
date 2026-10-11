@@ -46,15 +46,54 @@ if ($receipt.pack -cne $manifest.pack -or $receipt.pack_version -cne $manifest.p
 $expectedFiles = @($manifest.files)
 $patchKind = [string]$manifest.local_animation_patch.kind
 $patchRevision = [int]$manifest.local_animation_patch.revision
-if ($manifest.pack_version -ceq '2026.10.11.7' -and
+if ($manifest.pack_version -cin @('2026.10.11.7', '2026.10.11.8') -and
     ($patchKind -cne 'born-in-chaos-1.7.5' -or $patchRevision -ne 1)) {
-    throw 'The v7 local animation patch has an unexpected identity or revision.'
+    throw 'The local animation patch has an unexpected identity or revision.'
 }
 $hasAnimationPatch = $patchKind -ceq 'born-in-chaos-1.7.5' -and $patchRevision -eq 1
 if ($receipt.no_shader -isnot [bool] -or $receipt.no_resource_pack -isnot [bool] -or
     $receipt.shader_installed -isnot [bool] -or
     $receipt.shader_installed -ne (-not $receipt.no_shader)) {
     throw 'The installed client visual options differ from this release. Rerun Install-Client.cmd.'
+}
+if ($receipt.shader_enabled -isnot [bool]) {
+    throw 'The installed client shader state is missing. Rerun Install-Client.cmd.'
+}
+$oculusPath = Join-Path $MinecraftDirectory 'config\oculus.properties'
+Assert-ForgeNoReparsePoint -Path $oculusPath
+if (-not (Test-Path -LiteralPath $oculusPath -PathType Leaf)) {
+    throw 'Oculus settings are missing. Rerun Install-Client.cmd.'
+}
+$shaderLines = @(Get-Content -LiteralPath $oculusPath -Encoding UTF8 |
+    Where-Object { $_ -match '^\s*enableShaders\s*=' })
+if ($shaderLines.Count -ne 1) {
+    throw 'Oculus shader state is ambiguous. Rerun Install-Client.cmd.'
+}
+$shaderValue = ($shaderLines[0] -split '=', 2)[1].Trim()
+if ($shaderValue -cnotin @('true', 'false') -or
+    ($shaderValue -ceq 'true') -ne $receipt.shader_enabled) {
+    throw 'Oculus shader state changed after installation. Rerun Install-Client.cmd to synchronize optional darkness.'
+}
+if ($receipt.no_shader -and $receipt.shader_enabled) {
+    throw 'The installed NoShader choice conflicts with enabled Oculus shaders. Rerun Install-Client.cmd.'
+}
+if ($receipt.shader_enabled) {
+    $packLines = @(Get-Content -LiteralPath $oculusPath -Encoding UTF8 |
+        Where-Object { $_ -match '^\s*shaderPack\s*=' })
+    if ($packLines.Count -ne 1) {
+        throw 'Enabled Oculus shaders have no unique selected shader pack. Rerun Install-Client.cmd.'
+    }
+    $packName = ($packLines[0] -split '=', 2)[1].Trim()
+    if ([string]::IsNullOrWhiteSpace($packName) -or $packName -in @('.', '..') -or
+        $packName -match '[\\/]' -or $packName -notmatch '\.zip$' -or
+        $packName.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0) {
+        throw 'The selected Oculus shader pack is invalid. Rerun Install-Client.cmd.'
+    }
+    $packPath = Join-Path (Join-Path $MinecraftDirectory 'shaderpacks') $packName
+    Assert-ForgeNoReparsePoint -Path $packPath
+    if (-not (Test-Path -LiteralPath $packPath -PathType Leaf)) {
+        throw 'The selected Oculus shader pack is missing. Restore it or rerun Install-Client.cmd.'
+    }
 }
 $installedManifestCount = 0
 foreach ($item in $expectedFiles) {
@@ -71,8 +110,13 @@ foreach ($item in $expectedFiles) {
         $_.folder -ceq $item.folder -and $_.filename -ceq $item.filename -and
         $_.hash_algorithm -ceq $item.hash_algorithm -and $_.hash -ceq $item.hash
     })
+    $condition = [string]$item.install_when
+    if ($condition -and $condition -cne 'shaders_disabled') {
+        throw 'The release manifest has an unknown optional file condition.'
+    }
     $optionalSkipped = ($item.folder -ceq 'resourcepacks' -and $receipt.no_resource_pack) -or
-        ($item.folder -ceq 'shaderpacks' -and $receipt.no_shader)
+        ($item.folder -ceq 'shaderpacks' -and $receipt.no_shader) -or
+        ($condition -ceq 'shaders_disabled' -and $receipt.shader_enabled)
     if ($matchingReceipt.Count -ne [int](-not $optionalSkipped)) {
         throw "The install receipt differs from the release manifest: $($item.filename)"
     }

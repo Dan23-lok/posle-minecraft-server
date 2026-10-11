@@ -95,8 +95,8 @@ if ($animationPatchEnabled -and ($manifest.local_animation_patch.kind -cne 'born
     $manifest.local_animation_patch.revision -ne 1)) {
     throw 'The local animation patch has an unexpected manifest identity.'
 }
-if ($manifest.pack_version -ceq '2026.10.11.7' -and -not $animationPatchEnabled) {
-    throw 'The published v7 pack requires the local animation correction.'
+if ($manifest.pack_version -cin @('2026.10.11.7', '2026.10.11.8') -and -not $animationPatchEnabled) {
+    throw 'This pack requires the local animation correction.'
 }
 $knownBornHashes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 if ($animationPatchEnabled) {
