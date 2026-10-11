@@ -3,7 +3,7 @@ param(
     [string]$PlayUri = 'posle://play',
     [string]$MinecraftDirectory = (Join-Path $env:APPDATA '.minecraft-horror-apocalypse'),
     [string]$TLauncherPropertiesPath = (Join-Path $env:APPDATA '.tlauncher\tlauncher-2.0.properties'),
-    [string]$TLauncherExe = (Join-Path $env:APPDATA '.minecraft\TLauncher.exe'),
+    [string[]]$TLauncherCandidatePaths,
     [switch]$DryRun
 )
 
@@ -11,8 +11,8 @@ param(
 # The website must keep its existing download link until a supported launcher
 # handoff is tested with a real TLauncher client and account.
 $ErrorActionPreference = 'Stop'
-if ($PlayUri -cne 'posle://play') {
-    throw 'Only the fixed posle://play action is accepted.'
+if ($PlayUri -cnotin @('posle://play', 'posle://play/')) {
+    throw 'Only posle://play or its canonical trailing-slash form is accepted.'
 }
 
 $manifestPath = Join-Path $PSScriptRoot 'client-modpack.json'
@@ -99,19 +99,33 @@ $configuredDirectory = [string]$settings['minecraft.gamedir']
 $configuredDirectory = $configuredDirectory.Replace('\\', '\').Replace('\:', ':')
 if ([string]::IsNullOrWhiteSpace($configuredDirectory) -or
     [IO.Path]::GetFullPath($configuredDirectory).TrimEnd('\') -cne $MinecraftDirectory.TrimEnd('\')) {
-    throw 'TLauncher points at another game folder. Select the installed ПОСЛЕ folder in its settings.'
+    throw 'TLauncher points at another game folder. Select the installed client folder in its settings.'
 }
 if ([string]$settings['login.version.game'] -cne $versionId) {
     throw 'TLauncher has not selected Forge 1.20.1-47.4.10. Choose it in the launcher first.'
 }
 
-if (-not (Test-Path -LiteralPath $TLauncherExe -PathType Leaf)) {
-    throw 'TLauncher.exe was not found. Open your installed TLauncher manually.'
+if (-not $PSBoundParameters.ContainsKey('TLauncherCandidatePaths')) {
+    # Keep this list in sync with Install-HorrorClient.ps1 -LaunchTLauncher.
+    $TLauncherCandidatePaths = @(
+        (Join-Path $env:APPDATA '.minecraft\TLauncher.exe'),
+        (Join-Path $env:APPDATA '.tlauncher\TLauncher.exe'),
+        (Join-Path $env:LOCALAPPDATA 'TLauncher\TLauncher.exe')
+    )
 }
-$signature = Get-AuthenticodeSignature -LiteralPath $TLauncherExe
-if ($signature.Status -ne 'Valid' -or
-    $signature.SignerCertificate.Subject -notmatch '(^|, )O=TLauncher Inc\.(,|$)') {
-    throw 'The TLauncher executable does not have the expected valid publisher signature.'
+$tlauncher = $null
+foreach ($candidate in $TLauncherCandidatePaths) {
+    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+    $signature = Get-AuthenticodeSignature -LiteralPath $candidate
+    if ($signature.Status -eq 'Valid' -and
+        $signature.SignerCertificate.Subject -match '(^|, )O=TLauncher Inc\.(,|$)') {
+        $tlauncher = $candidate
+        break
+    }
+    Write-Warning "TLauncher candidate lacks the expected valid publisher signature: $candidate"
+}
+if (-not $tlauncher) {
+    throw 'No signed TLauncher.exe was found in the candidate locations.'
 }
 
 Write-Host "Client pack verified: $($manifest.pack_version); Forge $versionId; $($expectedFiles.Count) managed files."
@@ -124,5 +138,5 @@ if ($DryRun) {
 # TLauncher does not document a command-line API to choose this profile or
 # press Play. The helper only opens the signed launcher after confirming that
 # its current selection matches the installed pack.
-Start-Process -FilePath $TLauncherExe -WorkingDirectory (Split-Path -Parent $TLauncherExe) -WindowStyle Normal
+Start-Process -FilePath $tlauncher -WorkingDirectory (Split-Path -Parent $tlauncher) -WindowStyle Normal
 Write-Host 'TLauncher opened. Press Play in its window to start Forge, then join the saved server.'
