@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "minecraft": "1.20.1",
+  "loader": "Forge",
+  "loader_version": "47.4.10",
+  "note": "Server staging-v2 mod inventory. URLs point to authors official project/file pages; no JARs or authentication secrets are included. Local custom Auth Mod has no public download URL.",
+  "mods": [
+    {
+      "name": "Atlas Lib",
+      "version": "1.20.1-1.1.12",
+      "filename": "Atlas Lib-1.20.1-1.1.12.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/atlas-lib",
+      "download_url": "https://cdn.modrinth.com/data/G6VHtQr4/versions/PKJi0BrP/Atlas%20Lib-1.20.1-1.1.12.jar",
+      "sha512": "98875598d4d2077cd851bdb17ce6246ce35fa4b2ddbef8178e3c90d5db3831bda70fb5e60c3cbab3d8481e358469fa2a539cfd72fecd953cef12bf23b37fba55",
+      "source": "modrinth"
+    },
+    {
+      "name": "Auth Mod (local custom build)",
+      "version": "1.5.1-codex3",
+      "filename": "authmod-1.5.1-codex3.jar",
+      "client_side": "unsupported",
+      "server_side": "required",
+      "official_url": null,
+      "download_url": null,
+      "sha512": "845aaabc4e2be3d809805743eaf324a924ddd9bb4a8a35910092c8e4797dd5af8c64afc92de58f839276f0b9a8c34babf5aa908c8b9c6b42e084b3a37b91f71a",
+      "source": "local_custom_build"
+    },
+    {
+      "name": "Chunky",
+      "version": "1.3.146",
+      "filename": "Chunky-1.3.146.jar",
+      "client_side": "optional",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/chunky",
+      "download_url": "https://cdn.modrinth.com/data/fALzjamp/versions/4FTDk9wv/Chunky-1.3.146.jar",
+      "sha512": "13ef9d5bfea1895118eec45aa3071e2d79408241f29990624f67e157d4c525391753b0a1539ff3359dad79a6e5ab5e0b84fffbe528bdefcaaefd579ec794d9c9",
+      "source": "modrinth"
+    },
+    {
+      "name": "Civilian Aviation",
+      "version": "1.0.2",
+      "filename": "civilian_aviation-1.0.2-1.20.1-forge.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/civilian-aviation",
+      "download_url": "https://cdn.modrinth.com/data/j79fE2us/versions/ClkJoKdV/civilian_aviation-1.0.2-1.20.1-forge.jar",
+      "sha512": "b7887bfec207820c5b68e1be042f8c2ca3665be4325b7e7f26c281431e3c70340c0ebee0cea0d3130d0a445ac9c2baed420a15e3acd142b7b124001009361abc",
+      "source": "modrinth"
+    },
+    {
+      "name": "Deimos",
+      "version": "1.20.1-forge-2.7",
+      "filename": "deimos-1.20.1-forge-2.7.jar",
+      "client_side": "optional",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/deimos",
+      "download_url": "https://cdn.modrinth.com/data/WQaxNzFg/versions/kvQsIOHl/deimos-1.20.1-forge-2.7.jar",
+      "sha512": "5f133c28fe0fec5d9b851a02f2686cf50f14fe5112b76d89b6012bbf9b83c8a6d1d7d177b42aec260f37b366c00dc872f828035d101892a5b648fd5f9f74e355",
+      "source": "modrinth"
+    },
+    {
+      "name": "FerriteCore",
+      "version": "6.0.1",
+      "filename": "ferritecore-6.0.1-forge.jar",
+      "client_side": "optional",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/ferrite-core",
+      "download_url": "https://cdn.modrinth.com/data/uXXizFIs/versions/DG5Fn9Sz/ferritecore-6.0.1-forge.jar",
+      "sha512": "a1960a7c03dc32d4ccaccaf28afdd9b078758bbd62d15a91d4039a83fa9397a098e89b69591f6bd5190254d9ee97e502504154b9aec764adb8c65f000b75ba2c",
+      "source": "modrinth"
+    },
+    {
+      "name": "Immersive Aircraft",
+      "version": "1.5.0+1.20.1",
+      "filename": "immersive_aircraft-1.5.0+1.20.1-forge.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/immersive-aircraft",
+      "download_url": "https://cdn.modrinth.com/data/x3HZvrj6/versions/aDUlOdzA/immersive_aircraft-1.5.0%2B1.20.1-forge.jar",
+      "sha512": "3c51cc0e056543226c6768117f88201921613df044bb344527855e368573e5f23a88bca890ea10a236f372fca8fdf5c8424d972e57d699134474b6e3f601cc13",
+      "source": "modrinth"
+    },
+    {
+      "name": "The Lost Cities",
+      "version": "1.20-7.5.7",
+      "filename": "lostcities-1.20-7.5.7.jar",
+      "client_side": "unsupported",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/the-lost-cities",
+      "download_url": "https://cdn.modrinth.com/data/8VDCUS3b/versions/zDRDuewL/lostcities-1.20-7.5.7.jar",
+      "sha512": "3f36e97d97a2909261a3784aeca1a10ce7d1644a4b1e46234362509a5c1bff70a08338907054f7a20a24ae311fef50ff53ced5981d2227a7e61e72af7f5ba371",
+      "source": "modrinth"
+    },
+    {
+      "name": "Lost Cities Modern Tweaks: Lights Off Edition",
+      "version": "1.1.2",
+      "filename": "lostcities-modern-tweaks-nolighting-v1.1.2.jar",
+      "client_side": "optional",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/lost-cities-modern-tweaks-nolighting",
+      "download_url": "https://cdn.modrinth.com/data/1TKZ1hFA/versions/b2VnfYRN/lostcities-modern-tweaks-nolighting-v1.1.2.jar",
+      "sha512": "c34ad783213ec8753758ae0b985217260973185bd4bb1e3ffe1387aab2f4fb61ceab7703bd9fc330f0a5510d1d127ba121b95fdd3064d17dd5cb6523074ec468",
+      "source": "modrinth"
+    },
+    {
+      "name": "ModernFix",
+      "version": "5.27.87+mc1.20.1",
+      "filename": "modernfix-forge-5.27.87+mc1.20.1.jar",
+      "client_side": "optional",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/modernfix",
+      "download_url": "https://cdn.modrinth.com/data/nmDcB62a/versions/lbZjFq4Z/modernfix-forge-5.27.87%2Bmc1.20.1.jar",
+      "sha512": "28391f8bb4c7554d57d6ec7ae0b3e60a0af18e29b5e2f850d70e61b4fc22be632f04b149b6749164470e9dc168aaca9df776737e441bfe3acaa1ea23c2e800ea",
+      "source": "modrinth"
+    },
+    {
+      "name": "Natural Disasters: Cataclysm",
+      "version": "1.33.1",
+      "filename": "naturaldisasters-forge-1.20.1-1.33.1.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://www.curseforge.com/minecraft/mc-mods/natural-disasters-cataclysm/files/8644970",
+      "download_url": "https://www.curseforge.com/api/v1/mods/1651842/files/8644970/download",
+      "sha512": "0a03300f28283c6644214a9d841cef6e47c148131650d1ea514a68606e12ea92513b0e203f4ca7ba6850a0fd30655a4296f8c19fe3817e4f2f2db06a84bd0cfe",
+      "source": "curseforge"
+    },
+    {
+      "name": "Powered Flashlight",
+      "version": "1.0.0",
+      "filename": "powered_flashlight-forge-1.20.1-1.0.0.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/powered-flashlight",
+      "download_url": "https://cdn.modrinth.com/data/cidr24jQ/versions/1tpZnh9i/powered_flashlight-forge-1.20.1-1.0.0.jar",
+      "sha512": "c1b64ff882b1b2f4f555874fed496620ca4d67093fa6eb447046499f0d0edc80a413d55d98b6e131bf1bc54aad1fe789e7fdd87cae3c319b2b2e7276b7ee9edc",
+      "source": "modrinth"
+    },
+    {
+      "name": "Progressive Time Difficulty",
+      "version": "1.1.7",
+      "filename": "progressivetimedifficulty-1.1.7.jar",
+      "client_side": "unsupported",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/progressive-time-difficulty",
+      "download_url": "https://cdn.modrinth.com/data/1ovvmUXe/versions/w03XbAC1/progressivetimedifficulty-1.1.7.jar",
+      "sha512": "5fcf9309fb2f5c6cb045fca69a5371a242b729154d422546fd3650c42cc2c714ca6a358b5001981d5bd56ddacaee41afdefdb43d7acf51aa1af1e94570651e1e",
+      "source": "modrinth"
+    },
+    {
+      "name": "Server Side Horror",
+      "version": "1.20.1-forge-4.2",
+      "filename": "serversidehorror-1.20.1-forge-4.2.jar",
+      "client_side": "unsupported",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/server-side-horror",
+      "download_url": "https://cdn.modrinth.com/data/RJ4U0qmn/versions/e3oVpCgr/serversidehorror-1.20.1-forge-4.2.jar",
+      "sha512": "6d48e3fabe444397d5f02f2b78369e07ac75ca7e6a985185f721499a871254366b5d01543143d2e0335c4a7066a425b36f40f966fa32b89e41023b52de8e6b1c",
+      "source": "modrinth"
+    },
+    {
+      "name": "Timeless and Classics Zero",
+      "version": "1.1.8-hotfix2",
+      "filename": "tacz-1.20.1-1.1.8-hotfix2.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/timeless-and-classics-zero",
+      "download_url": "https://cdn.modrinth.com/data/SzzJttH8/versions/AzCBJlex/tacz-1.20.1-1.1.8-hotfix2.jar",
+      "sha512": "fa8b4bd4a7a0835092bccbb28a18461642d4e7a2f6fdb762ac4978d4dbc31d1f0f61c685343a61607dce3d1cd89f4314b61a9f8811960b9d0604692ac3fff96d",
+      "source": "modrinth"
+    },
+    {
+      "name": "Terralith",
+      "version": "2.5.4",
+      "filename": "Terralith_1.20.x_v2.5.4.jar",
+      "client_side": "optional",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/terralith",
+      "download_url": "https://cdn.modrinth.com/data/8oi3bsk5/versions/WeYhEb5d/Terralith_1.20.x_v2.5.4.jar",
+      "sha512": "885e171d8b34aae7e142f082d0364285ec5a8e8342f11c60d341f7a94083d5a42c4e30612fe4f9f64d57b484396a3dff3a224e2a2497d4ced8d22f2ad6cd561d",
+      "source": "modrinth"
+    },
+    {
+      "name": "The Hordes",
+      "version": "1.20.1-1.6.3i",
+      "filename": "The-Hordes-1.20.1-1.6.3i-all.jar",
+      "client_side": "required",
+      "server_side": "required",
+      "official_url": "https://modrinth.com/mod/the-hordes",
+      "download_url": "https://cdn.modrinth.com/data/O3HDffUR/versions/WMyMpstF/The-Hordes-1.20.1-1.6.3i-all.jar",
+      "sha512": "a6baf363a395a1f8489f257dc9eccbe4bc04773276388136f4286324bb0726b014f8890a33dce0f49fc3c189a166fabbd42a3bd713ebf75a6397dd4e62fda716",
+      "source": "modrinth"
+    }
+  ]
+}
