@@ -7,3 +7,9 @@
 .site-footer .footer-github{font-size:11px;letter-spacing:.19em;font-weight:800;white-space:nowrap;color:var(--acid)}.site-footer .footer-github:hover{color:#e3ff9b}
 .hero-art-note{margin:18px 0 0;color:#d5ded6;font-size:11px;line-height:1.5;letter-spacing:.13em;text-transform:uppercase}
 .evidence-shot{margin:56px 0 0;border:1px solid rgba(255,255,255,.18);background:#111919;overflow:hidden}.evidence-shot img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}.evidence-shot figcaption{display:flex;align-items:flex-start;gap:24px;padding:20px 24px;color:#b8c1bd;font-size:13px;line-height:1.55}.evidence-shot figcaption strong{flex:none;color:var(--acid);font-size:11px;letter-spacing:.13em}.evidence-shot figcaption span{max-width:850px}@media(max-width:640px){.evidence-shot{margin-top:38px}.evidence-shot figcaption{display:block;padding:16px}.evidence-shot figcaption strong{display:block;margin-bottom:8px}}
+.hero-action-note{max-width:550px;margin:17px 0 0;color:#d1d8d3;font-size:12px;line-height:1.6}
+.hero-action-note+.hero-art-note{margin-top:10px}
+.launcher-button{width:100%;margin-top:10px;border:1px solid #263e1f;color:#182119;background:transparent}
+.launcher-button:hover{background:#dbf5a4}
+.connect-card .button:focus-visible,.address-box button:focus-visible{outline-color:#182119}
+@media(max-width:640px){.hero-action-note{font-size:11px;line-height:1.5}}
