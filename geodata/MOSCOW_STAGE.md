@@ -20,18 +20,29 @@ the public survival world. The pilot server is stopped. `D:\1-Game\world-v2`,
 - One apartment at OSM way 217834048, Nakhimovsky Prospekt 63 building 2,
   was entered in-game around X 4,180,899, Y 92, Z -7,494,804. It has
   large mostly empty rooms. It has not been turned into a believable ruin.
-- Potential unsupported `minecraft:banner` block entities were reported at
-  X 4,181,159, Y 89, Z -7,494,657 and -7,494,655. Support and generator
-  cause remain to be checked. Do not extrapolate from a few screenshots to
-  a no-floating-fragments claim for the entire sector.
+- Generation reported `minecraft:banner` block entity warnings at
+  X 4,181,159, Y 89, Z -7,494,657 and -7,494,655. A read-only Anvil
+  check of the saved chunks found **air and no block entity at either
+  coordinate**; the warnings did not leave saved floating banners there.
+  This does not explain the generator warning or prove every ruin is supported.
+  Local evidence: `staging-earth-sector-20261011/banner-support-audit.json`
+  and its read-only `audit_banner_support.py` in the same staging directory.
 - The staged world does **not** demonstrate developed Moscow or any American
   city, furnished apartments, logical road network, airports, factories,
   railways, apocalypse damage, or a global Earth survival world.
 
 Primary sources: [Tellus 0.8.3 release](https://github.com/Yucareux/Tellus/releases/tag/v0.8.3),
+[Tellus 0.8.3 README](https://github.com/Yucareux/Tellus/blob/v0.8.3/README.md),
 [OpenStreetMap data rights](https://www.openstreetmap.org/copyright),
-[Natural Earth 5.1.1](https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.1).
+[Natural Earth 5.1.1](https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.1),
+[BuildTheEarth FAQ](https://buildtheearth.net/faq),
+[BuildTheEarth download page](https://buildtheearth.net/download).
 OSM data © OpenStreetMap contributors, available under ODbL.
+
+Tellus itself warns that its 0.8.3 survival features and official dedicated
+server support are unfinished. BuildTheEarth says there is no single master
+world download; featured and regional downloads depend on individual teams
+and may be Patreon-only. No BuildTheEarth Moscow or US city was imported.
 
 The main `WORLD_COVERAGE.csv` deliberately marks all 195 reference countries
 `not_generated` for *Earth terrain*. The existing main Minecraft world is
