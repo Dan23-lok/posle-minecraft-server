@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-10-11T11:33:09.203704+00:00",
+  "generated_at_utc": "2026-10-11T11:35:20.760155+00:00",
   "source_provider": "GeoNames",
   "source_snapshot": "2026-10-10-v3",
   "source_catalogue_sha256": "6ad7b5ae34034dbe99a6fb1245f14d4b3fd358c8ab80aaa4feef2a328f52ca05",
@@ -27,13 +27,13 @@
   "files": {
     "countries_195_geonames_counts.csv": {
       "rows": 195,
-      "bytes": 24806,
-      "sha256": "9a376f9e1ab2a22a34764d5dd53d0eea9d2c82f72d0971ffa6f9e42b3e47776f"
+      "bytes": 28511,
+      "sha256": "22885e4d2dbfa6b3d07372172337e47f105a14b40173862d8bf4a5ac4a7fdcc9"
     },
     "areas_54_geonames_counts.csv": {
       "rows": 54,
-      "bytes": 7790,
-      "sha256": "4b6f8c8f6b11e5bb418bd5bb164ce1abf87386d24fd6f40bcb90d6be07c14f2f"
+      "bytes": 8816,
+      "sha256": "d6d73ff98fc74b921c1d113c3f5794cdf43b4353b70a16c20be3be122520a032"
     },
     "other_geonames_codes.csv": {
       "rows": 1,
@@ -42,7 +42,7 @@
     }
   },
   "wup_2025_status": "NOT_IMPORTED",
-  "minecraft_terrain_status": "NOT_GENERATED",
+  "minecraft_terrain_status": "NOT_GENERATED_IN_CANONICAL_WORLD",
   "minecraft_spawn_status": "NOT_VALIDATED",
   "license": "GeoNames CC BY 4.0; country names/status from owner reference registry; attribution retained."
 }

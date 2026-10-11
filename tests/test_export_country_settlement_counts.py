@@ -25,6 +25,7 @@ class CountrySettlementExportTests(unittest.TestCase):
         self.assertEqual(countries[1]["source_count_status"], "OBSERVED_ZERO_IN_SOURCE")
         self.assertEqual(countries[0]["wup_2025_urban_centre_count"], "")
         self.assertEqual(countries[0]["wup_count_status"], "NOT_IMPORTED")
+        self.assertEqual(countries[0]["minecraft_terrain_status"], "NOT_GENERATED_IN_CANONICAL_WORLD")
         self.assertEqual(areas[0]["source_settlement_count"], 4)
         self.assertEqual(summary["selected_source_rows"], 10)
         self.assertEqual(summary["baseline_rows"], 3)

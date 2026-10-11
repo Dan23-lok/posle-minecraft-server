@@ -68,7 +68,7 @@ def build_rows(countries, areas, counts):
             "source_count_status": "COUNTED_IN_PINNED_GEONAMES" if amount else "OBSERVED_ZERO_IN_SOURCE",
             "wup_2025_urban_centre_count": "",
             "wup_count_status": "NOT_IMPORTED",
-            "minecraft_terrain_status": "NOT_GENERATED",
+            "minecraft_terrain_status": "NOT_GENERATED_IN_CANONICAL_WORLD",
             "minecraft_spawn_status": "NOT_VALIDATED",
         }
 
@@ -152,7 +152,7 @@ def main() -> None:
             other_output.name: {"rows": len(summary["other_by_code"]), "bytes": other_output.stat().st_size, "sha256": sha256(other_output)},
         },
         "wup_2025_status": "NOT_IMPORTED",
-        "minecraft_terrain_status": "NOT_GENERATED",
+        "minecraft_terrain_status": "NOT_GENERATED_IN_CANONICAL_WORLD",
         "minecraft_spawn_status": "NOT_VALIDATED",
         "license": "GeoNames CC BY 4.0; country names/status from owner reference registry; attribution retained.",
     }
