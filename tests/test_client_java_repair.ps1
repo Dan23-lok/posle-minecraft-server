@@ -51,7 +51,8 @@ function New-ReadyForgeProfile {
     New-Item -ItemType Directory -Path (Split-Path -Parent $forgeJar) -Force | Out-Null
     $zip = [IO.Compression.ZipFile]::Open($forgeJar, [IO.Compression.ZipArchiveMode]::Create)
     try {
-        $entry = $zip.CreateEntry('fixture.class')
+        $entry = $zip.CreateEntry('fixture.class', [IO.Compression.CompressionLevel]::NoCompression)
+        $entry.LastWriteTime = [DateTimeOffset]::new(2026, 10, 11, 0, 0, 0, [TimeSpan]::Zero)
         $writer = New-Object IO.StreamWriter($entry.Open())
         try { $writer.Write('class fixture') } finally { $writer.Dispose() }
     } finally { $zip.Dispose() }
@@ -123,12 +124,21 @@ function Get-VerifiedFile {
     $installer = Join-Path $package 'Install-HorrorClient.ps1'
     [IO.File]::WriteAllText($installer, $source, (New-Object Text.UTF8Encoding($false)))
     $readiness = Get-Content -LiteralPath (Join-Path $clientPack 'Forge-ClientReadiness.ps1') -Raw -Encoding UTF8
+    $forgeTemplate = Join-Path $scratch 'forge-hash-template'
+    New-ReadyForgeProfile -ClientRoot $forgeTemplate
+    $fixtureForgeJar = Join-Path $forgeTemplate 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
+    $fixtureForgeHash = (Get-FileHash -LiteralPath $fixtureForgeJar -Algorithm SHA256).Hash
+    $fixtureForgeSize = (Get-Item -LiteralPath $fixtureForgeJar).Length
     $fixtureBase = [Text.Encoding]::ASCII.GetBytes('base Minecraft client')
     $fixtureSha = ([BitConverter]::ToString(([Security.Cryptography.SHA1]::Create()).ComputeHash($fixtureBase))).Replace('-', '').ToLowerInvariant()
     Assert-True ($readiness.Contains('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838') -and
-        $readiness.Contains('23028853L')) 'Mojang fixture replacement anchors missing'
+        $readiness.Contains('23028853L') -and
+        $readiness.Contains('839B69B60243EC31A6C53F6AC28D82D8251427A8C8BB946E920129618ABDC944') -and
+        $readiness.Contains('4848366L')) 'Forge fixture replacement anchors missing'
     $readiness = $readiness.Replace('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838', $fixtureSha)
     $readiness = $readiness.Replace('23028853L', "$($fixtureBase.Length)L")
+    $readiness = $readiness.Replace('839B69B60243EC31A6C53F6AC28D82D8251427A8C8BB946E920129618ABDC944', $fixtureForgeHash)
+    $readiness = $readiness.Replace('4848366L', "$($fixtureForgeSize)L")
     [IO.File]::WriteAllText((Join-Path $package 'Forge-ClientReadiness.ps1'), $readiness,
         (New-Object Text.UTF8Encoding($false)))
     $env:POSLE_JAVA_REPAIR_ARCHIVE = $javaArchive

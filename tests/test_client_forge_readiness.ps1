@@ -23,9 +23,21 @@ function Write-Bytes {
     [IO.File]::WriteAllBytes($Path, $Bytes)
 }
 
+function Write-FixtureForgeZip {
+    param([string]$Path, [string]$Content)
+    New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force | Out-Null
+    $zip = [IO.Compression.ZipFile]::Open($Path, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        $entry = $zip.CreateEntry('fixture.class', [IO.Compression.CompressionLevel]::NoCompression)
+        $entry.LastWriteTime = [DateTimeOffset]::new(2026, 10, 11, 0, 0, 0, [TimeSpan]::Zero)
+        $writer = New-Object IO.StreamWriter($entry.Open())
+        try { $writer.Write($Content) } finally { $writer.Dispose() }
+    } finally { $zip.Dispose() }
+}
+
 function New-ForgeFixture {
     param([string]$ClientRoot, [switch]$CorruptWindowsLibrary, [switch]$MissingMacLibrary,
-        [switch]$Inherited)
+        [switch]$Inherited, [string]$ForgeJarSource)
     $versionId = '1.20.1-forge-47.4.10'
     $versionFolder = Join-Path $ClientRoot "versions\$versionId"
     New-Item -ItemType Directory -Path $versionFolder -Force | Out-Null
@@ -83,15 +95,18 @@ function New-ForgeFixture {
     $profile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $versionFolder "$versionId.json") -Encoding UTF8
     $forgeJar = Join-Path $ClientRoot 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
     New-Item -ItemType Directory -Path (Split-Path -Parent $forgeJar) -Force | Out-Null
-    $zip = [IO.Compression.ZipFile]::Open($forgeJar, [IO.Compression.ZipArchiveMode]::Create)
-    try {
-        $entry = $zip.CreateEntry('fixture.class')
-        $writer = New-Object IO.StreamWriter($entry.Open())
-        try { $writer.Write('class fixture') } finally { $writer.Dispose() }
-    } finally { $zip.Dispose() }
+    Copy-Item -LiteralPath $ForgeJarSource -Destination $forgeJar
 }
 
 try {
+    $fixtureForgeJar = Join-Path $scratch 'fixture-forge-client.jar'
+    Write-FixtureForgeZip -Path $fixtureForgeJar -Content 'class fixture'
+    $fakeForgeSize = (Get-Item -LiteralPath $fixtureForgeJar).Length
+    $fakeForgeSha256 = (Get-FileHash -LiteralPath $fixtureForgeJar -Algorithm SHA256).Hash
+    $tamperedForgeJar = Join-Path $scratch 'tampered-forge-client.jar'
+    Write-FixtureForgeZip -Path $tamperedForgeJar -Content 'class altered'
+    Assert-True ((Get-Item -LiteralPath $tamperedForgeJar).Length -eq $fakeForgeSize) `
+        'same-size valid ZIP tamper fixture changed size'
     $package = Join-Path $scratch 'package'
     New-Item -ItemType Directory -Path (Join-Path $package 'historical') -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $clientPack 'Install-HorrorClient.ps1') -Destination $package
@@ -101,9 +116,13 @@ try {
     $fakeSha1 = ([BitConverter]::ToString(([Security.Cryptography.SHA1]::Create()).ComputeHash($fakeBase))).Replace('-', '').ToLowerInvariant()
     $readiness = Get-Content -LiteralPath (Join-Path $clientPack 'Forge-ClientReadiness.ps1') -Raw -Encoding UTF8
     Assert-True ($readiness.Contains('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838') -and
-        $readiness.Contains('23028853L')) 'Mojang fixture replacement anchors missing'
+        $readiness.Contains('23028853L') -and
+        $readiness.Contains('839B69B60243EC31A6C53F6AC28D82D8251427A8C8BB946E920129618ABDC944') -and
+        $readiness.Contains('4848366L')) 'Forge fixture replacement anchors missing'
     $readiness = $readiness.Replace('0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838', $fakeSha1)
     $readiness = $readiness.Replace('23028853L', "$($fakeBase.Length)L")
+    $readiness = $readiness.Replace('839B69B60243EC31A6C53F6AC28D82D8251427A8C8BB946E920129618ABDC944', $fakeForgeSha256)
+    $readiness = $readiness.Replace('4848366L', "$($fakeForgeSize)L")
     [IO.File]::WriteAllText((Join-Path $package 'Forge-ClientReadiness.ps1'), $readiness,
         (New-Object Text.UTF8Encoding($false)))
     $fixtureBytes = [Text.Encoding]::ASCII.GetBytes('unchanged fixture mod')
@@ -123,17 +142,23 @@ try {
         ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $package 'historical\client-modpack-2026.10.11.4.json') -Encoding UTF8
 
     foreach ($case in @('valid', 'inherited', 'corrupt-windows', 'missing-macos',
-            'tampered-base', 'inherited-tampered-base', 'wrong-java', 'unsafe-library')) {
+            'tampered-base', 'inherited-tampered-base', 'tampered-forge-valid-zip',
+            'wrong-java', 'unsafe-library')) {
         $client = Join-Path $scratch $case
         New-ForgeFixture -ClientRoot $client -CorruptWindowsLibrary:($case -eq 'corrupt-windows') `
             -MissingMacLibrary:($case -eq 'missing-macos') `
-            -Inherited:($case -in @('inherited', 'inherited-tampered-base'))
+            -Inherited:($case -in @('inherited', 'inherited-tampered-base')) `
+            -ForgeJarSource $fixtureForgeJar
         $profilePath = Join-Path $client 'versions\1.20.1-forge-47.4.10\1.20.1-forge-47.4.10.json'
         if ($case -in @('tampered-base', 'inherited-tampered-base')) {
             $baseJar = if ($case -eq 'inherited-tampered-base') {
                 Join-Path $client 'versions\1.20.1\1.20.1.jar'
             } else { Join-Path $client 'versions\1.20.1-forge-47.4.10\1.20.1-forge-47.4.10.jar' }
             Write-Bytes -Path $baseJar -Bytes ([Text.Encoding]::ASCII.GetBytes('Xanilla client fixture'))
+        }
+        if ($case -eq 'tampered-forge-valid-zip') {
+            $forgeJar = Join-Path $client 'libraries\net\minecraftforge\forge\1.20.1-47.4.10\forge-1.20.1-47.4.10-client.jar'
+            Copy-Item -LiteralPath $tamperedForgeJar -Destination $forgeJar -Force
         }
         if ($case -in @('wrong-java', 'unsafe-library')) {
             $profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -154,11 +179,12 @@ try {
         & (Join-Path $package 'Install-HorrorClient.ps1') -MinecraftDirectory $client -SkipForge | Out-Null
         $receipt = Get-Content -LiteralPath (Join-Path $client 'horror-apocalypse-install.json') -Raw -Encoding UTF8 |
             ConvertFrom-Json
-        $expected = $case -notin @('corrupt-windows', 'tampered-base', 'inherited-tampered-base', 'wrong-java')
+        $expected = $case -notin @('corrupt-windows', 'tampered-base', 'inherited-tampered-base',
+            'tampered-forge-valid-zip', 'wrong-java')
         Assert-True ($receipt.forge_installed -eq $expected) "$case Forge readiness was recorded incorrectly"
     }
     $receiptClient = Join-Path $scratch 'receipt-directory'
-    New-ForgeFixture -ClientRoot $receiptClient
+    New-ForgeFixture -ClientRoot $receiptClient -ForgeJarSource $fixtureForgeJar
     Write-Bytes -Path (Join-Path $receiptClient 'mods\fixture.jar') -Bytes $fixtureBytes
     $receiptDirectory = Join-Path $receiptClient 'horror-apocalypse-install.json'
     New-Item -ItemType Directory -Path $receiptDirectory -Force | Out-Null
