@@ -1,0 +1,196 @@
+iso2,name_en,name_ru,un_status,m49_broad_region,reference_locality,source_line,source_settlement_count,wup_urban_centre_count,listed_in_registry,geometry_loaded,terrain_generated,spawn_validated
+AF,Afghanistan,Афганистан,member_state,Asia,Kabul,532,,,true,false,false,false
+AL,Albania,Албания,member_state,Europe,Tirana,533,,,true,false,false,false
+DZ,Algeria,Алжир,member_state,Africa,Algiers,534,,,true,false,false,false
+AD,Andorra,Андорра,member_state,Europe,Andorra la Vella,535,,,true,false,false,false
+AO,Angola,Ангола,member_state,Africa,Luanda,536,,,true,false,false,false
+AG,Antigua & Barbuda,Антигуа и Барбуда,member_state,Americas,St. John's,537,,,true,false,false,false
+AR,Argentina,Аргентина,member_state,Americas,Buenos Aires,538,,,true,false,false,false
+AM,Armenia,Армения,member_state,Asia,Yerevan,539,,,true,false,false,false
+AU,Australia,Австралия,member_state,Oceania,Canberra,540,,,true,false,false,false
+AT,Austria,Австрия,member_state,Europe,Vienna,541,,,true,false,false,false
+AZ,Azerbaijan,Азербайджан,member_state,Asia,Baku,542,,,true,false,false,false
+BS,Bahamas,Багамы,member_state,Americas,Nassau,543,,,true,false,false,false
+BH,Bahrain,Бахрейн,member_state,Asia,Manama,544,,,true,false,false,false
+BD,Bangladesh,Бангладеш,member_state,Asia,Dhaka,545,,,true,false,false,false
+BB,Barbados,Барбадос,member_state,Americas,Bridgetown,546,,,true,false,false,false
+BY,Belarus,Беларусь,member_state,Europe,Minsk,547,,,true,false,false,false
+BE,Belgium,Бельгия,member_state,Europe,Brussels,548,,,true,false,false,false
+BZ,Belize,Белиз,member_state,Americas,Belmopan,549,,,true,false,false,false
+BJ,Benin,Бенин,member_state,Africa,Porto-Novo,550,,,true,false,false,false
+BT,Bhutan,Бутан,member_state,Asia,Thimphu,551,,,true,false,false,false
+BO,Bolivia,Боливия,member_state,Americas,Sucre,552,,,true,false,false,false
+BA,Bosnia & Herzegovina,Босния и Герцеговина,member_state,Europe,Sarajevo,553,,,true,false,false,false
+BW,Botswana,Ботсвана,member_state,Africa,Gaborone,554,,,true,false,false,false
+BR,Brazil,Бразилия,member_state,Americas,Brasilia,555,,,true,false,false,false
+BN,Brunei,Бруней,member_state,Asia,Bandar Seri Begawan,556,,,true,false,false,false
+BG,Bulgaria,Болгария,member_state,Europe,Sofia,557,,,true,false,false,false
+BF,Burkina Faso,Буркина-Фасо,member_state,Africa,Ouagadougou,558,,,true,false,false,false
+BI,Burundi,Бурунди,member_state,Africa,Gitega,559,,,true,false,false,false
+KH,Cambodia,Камбоджа,member_state,Asia,Phnom Penh,560,,,true,false,false,false
+CM,Cameroon,Камерун,member_state,Africa,Yaounde,561,,,true,false,false,false
+CA,Canada,Канада,member_state,Americas,Ottawa,562,,,true,false,false,false
+CV,Cape Verde,Кабо-Верде,member_state,Africa,Praia,563,,,true,false,false,false
+CF,Central African Republic,Центрально-Африканская Республика,member_state,Africa,Bangui,564,,,true,false,false,false
+TD,Chad,Чад,member_state,Africa,N'Djamena,565,,,true,false,false,false
+CL,Chile,Чили,member_state,Americas,Santiago,566,,,true,false,false,false
+CN,China,Китай,member_state,Asia,Beijing,567,,,true,false,false,false
+CO,Colombia,Колумбия,member_state,Americas,Bogota,568,,,true,false,false,false
+KM,Comoros,Коморы,member_state,Africa,Moroni,569,,,true,false,false,false
+CR,Costa Rica,Коста-Рика,member_state,Americas,San Jose,570,,,true,false,false,false
+HR,Croatia,Хорватия,member_state,Europe,Zagreb,571,,,true,false,false,false
+CU,Cuba,Куба,member_state,Americas,Havana,572,,,true,false,false,false
+CY,Cyprus,Кипр,member_state,Asia,Nicosia,573,,,true,false,false,false
+CZ,Czechia,Чехия,member_state,Europe,Prague,574,,,true,false,false,false
+CI,Côte d’Ivoire,Кот-д’Ивуар,member_state,Africa,Yamoussoukro,575,,,true,false,false,false
+KP,Democratic People's Republic of Korea,КНДР,member_state,Asia,Pyongyang,576,,,true,false,false,false
+CD,Democratic Republic of the Congo,Демократическая Республика Конго,member_state,Africa,Kinshasa,577,,,true,false,false,false
+DK,Denmark,Дания,member_state,Europe,Copenhagen,578,,,true,false,false,false
+DJ,Djibouti,Джибути,member_state,Africa,Djibouti,579,,,true,false,false,false
+DM,Dominica,Доминика,member_state,Americas,Roseau,580,,,true,false,false,false
+DO,Dominican Republic,Доминиканская Республика,member_state,Americas,Santo Domingo,581,,,true,false,false,false
+EC,Ecuador,Эквадор,member_state,Americas,Quito,582,,,true,false,false,false
+EG,Egypt,Египет,member_state,Africa,Cairo,583,,,true,false,false,false
+SV,El Salvador,Сальвадор,member_state,Americas,San Salvador,584,,,true,false,false,false
+GQ,Equatorial Guinea,Экваториальная Гвинея,member_state,Africa,Ciudad de la Paz,585,,,true,false,false,false
+ER,Eritrea,Эритрея,member_state,Africa,Asmara,586,,,true,false,false,false
+EE,Estonia,Эстония,member_state,Europe,Tallinn,587,,,true,false,false,false
+SZ,Eswatini,Эсватини,member_state,Africa,Mbabane,588,,,true,false,false,false
+ET,Ethiopia,Эфиопия,member_state,Africa,Addis Ababa,589,,,true,false,false,false
+FM,Federated States of Micronesia,Федеративные Штаты Микронезии,member_state,Oceania,Palikir,590,,,true,false,false,false
+FJ,Fiji,Фиджи,member_state,Oceania,Suva,591,,,true,false,false,false
+FI,Finland,Финляндия,member_state,Europe,Helsinki,592,,,true,false,false,false
+FR,France,Франция,member_state,Europe,Paris,593,,,true,false,false,false
+GA,Gabon,Габон,member_state,Africa,Libreville,594,,,true,false,false,false
+GM,Gambia,Гамбия,member_state,Africa,Banjul,595,,,true,false,false,false
+GE,Georgia,Грузия,member_state,Asia,Tbilisi,596,,,true,false,false,false
+DE,Germany,Германия,member_state,Europe,Berlin,597,,,true,false,false,false
+GH,Ghana,Гана,member_state,Africa,Accra,598,,,true,false,false,false
+GR,Greece,Греция,member_state,Europe,Athens,599,,,true,false,false,false
+GD,Grenada,Гренада,member_state,Americas,St. George's,600,,,true,false,false,false
+GT,Guatemala,Гватемала,member_state,Americas,Guatemala City,601,,,true,false,false,false
+GN,Guinea,Гвинея,member_state,Africa,Conakry,602,,,true,false,false,false
+GW,Guinea-Bissau,Гвинея-Бисау,member_state,Africa,Bissau,603,,,true,false,false,false
+GY,Guyana,Гайана,member_state,Americas,Georgetown,604,,,true,false,false,false
+HT,Haiti,Гаити,member_state,Americas,Port-au-Prince,605,,,true,false,false,false
+VA,Holy See,Святой Престол (Ватикан),observer_state,Europe,Vatican City,606,,,true,false,false,false
+HN,Honduras,Гондурас,member_state,Americas,Tegucigalpa,607,,,true,false,false,false
+HU,Hungary,Венгрия,member_state,Europe,Budapest,608,,,true,false,false,false
+IS,Iceland,Исландия,member_state,Europe,Reykjavik,609,,,true,false,false,false
+IN,India,Индия,member_state,Asia,New Delhi,610,,,true,false,false,false
+ID,Indonesia,Индонезия,member_state,Asia,Jakarta,611,,,true,false,false,false
+IR,Iran,Иран,member_state,Asia,Tehran,612,,,true,false,false,false
+IQ,Iraq,Ирак,member_state,Asia,Baghdad,613,,,true,false,false,false
+IE,Ireland,Ирландия,member_state,Europe,Dublin,614,,,true,false,false,false
+IL,Israel,Израиль,member_state,Asia,Jerusalem,615,,,true,false,false,false
+IT,Italy,Италия,member_state,Europe,Rome,616,,,true,false,false,false
+JM,Jamaica,Ямайка,member_state,Americas,Kingston,617,,,true,false,false,false
+JP,Japan,Япония,member_state,Asia,Tokyo,618,,,true,false,false,false
+JO,Jordan,Иордания,member_state,Asia,Amman,619,,,true,false,false,false
+KZ,Kazakhstan,Казахстан,member_state,Asia,Astana,620,,,true,false,false,false
+KE,Kenya,Кения,member_state,Africa,Nairobi,621,,,true,false,false,false
+KI,Kiribati,Кирибати,member_state,Oceania,Tarawa,622,,,true,false,false,false
+KW,Kuwait,Кувейт,member_state,Asia,Kuwait City,623,,,true,false,false,false
+KG,Kyrgyzstan,Киргизия,member_state,Asia,Bishkek,624,,,true,false,false,false
+LA,Laos,Лаос,member_state,Asia,Vientiane,625,,,true,false,false,false
+LV,Latvia,Латвия,member_state,Europe,Riga,626,,,true,false,false,false
+LB,Lebanon,Ливан,member_state,Asia,Beirut,627,,,true,false,false,false
+LS,Lesotho,Лесото,member_state,Africa,Maseru,628,,,true,false,false,false
+LR,Liberia,Либерия,member_state,Africa,Monrovia,629,,,true,false,false,false
+LY,Libya,Ливия,member_state,Africa,Tripoli,630,,,true,false,false,false
+LI,Liechtenstein,Лихтенштейн,member_state,Europe,Vaduz,631,,,true,false,false,false
+LT,Lithuania,Литва,member_state,Europe,Vilnius,632,,,true,false,false,false
+LU,Luxembourg,Люксембург,member_state,Europe,Luxembourg,633,,,true,false,false,false
+MG,Madagascar,Мадагаскар,member_state,Africa,Antananarivo,634,,,true,false,false,false
+MW,Malawi,Малави,member_state,Africa,Lilongwe,635,,,true,false,false,false
+MY,Malaysia,Малайзия,member_state,Asia,Kuala Lumpur,636,,,true,false,false,false
+MV,Maldives,Мальдивы,member_state,Asia,Male,637,,,true,false,false,false
+ML,Mali,Мали,member_state,Africa,Bamako,638,,,true,false,false,false
+MT,Malta,Мальта,member_state,Europe,Valletta,639,,,true,false,false,false
+MH,Marshall Islands,Маршалловы о-ва,member_state,Oceania,Majuro,640,,,true,false,false,false
+MR,Mauritania,Мавритания,member_state,Africa,Nouakchott,641,,,true,false,false,false
+MU,Mauritius,Маврикий,member_state,Africa,Port Louis,642,,,true,false,false,false
+MX,Mexico,Мексика,member_state,Americas,Mexico City,643,,,true,false,false,false
+MD,Moldova,Молдова,member_state,Europe,Chisinau,644,,,true,false,false,false
+MC,Monaco,Монако,member_state,Europe,Monaco,645,,,true,false,false,false
+MN,Mongolia,Монголия,member_state,Asia,Ulaanbaatar,646,,,true,false,false,false
+ME,Montenegro,Черногория,member_state,Europe,Podgorica,647,,,true,false,false,false
+MA,Morocco,Марокко,member_state,Africa,Rabat,648,,,true,false,false,false
+MZ,Mozambique,Мозамбик,member_state,Africa,Maputo,649,,,true,false,false,false
+MM,Myanmar (Burma),Мьянма (Бирма),member_state,Asia,Nay Pyi Taw,650,,,true,false,false,false
+NA,Namibia,Намибия,member_state,Africa,Windhoek,651,,,true,false,false,false
+NR,Nauru,Науру,member_state,Oceania,Yaren,652,,,true,false,false,false
+NP,Nepal,Непал,member_state,Asia,Kathmandu,653,,,true,false,false,false
+NL,Netherlands,Нидерланды,member_state,Europe,Amsterdam,654,,,true,false,false,false
+NZ,New Zealand,Новая Зеландия,member_state,Oceania,Wellington,655,,,true,false,false,false
+NI,Nicaragua,Никарагуа,member_state,Americas,Managua,656,,,true,false,false,false
+NE,Niger,Нигер,member_state,Africa,Niamey,657,,,true,false,false,false
+NG,Nigeria,Нигерия,member_state,Africa,Abuja,658,,,true,false,false,false
+MK,North Macedonia,Северная Македония,member_state,Europe,Skopje,659,,,true,false,false,false
+NO,Norway,Норвегия,member_state,Europe,Oslo,660,,,true,false,false,false
+OM,Oman,Оман,member_state,Asia,Muscat,661,,,true,false,false,false
+PK,Pakistan,Пакистан,member_state,Asia,Islamabad,662,,,true,false,false,false
+PW,Palau,Палау,member_state,Oceania,Melekeok,663,,,true,false,false,false
+PA,Panama,Панама,member_state,Americas,Panama City,664,,,true,false,false,false
+PG,Papua New Guinea,Папуа — Новая Гвинея,member_state,Oceania,Port Moresby,665,,,true,false,false,false
+PY,Paraguay,Парагвай,member_state,Americas,Asuncion,666,,,true,false,false,false
+PE,Peru,Перу,member_state,Americas,Lima,667,,,true,false,false,false
+PH,Philippines,Филиппины,member_state,Asia,Manila,668,,,true,false,false,false
+PL,Poland,Польша,member_state,Europe,Warsaw,669,,,true,false,false,false
+PT,Portugal,Португалия,member_state,Europe,Lisbon,670,,,true,false,false,false
+QA,Qatar,Катар,member_state,Asia,Doha,671,,,true,false,false,false
+KR,Republic of Korea,Республика Корея,member_state,Asia,Seoul,672,,,true,false,false,false
+CG,Republic of the Congo,Республика Конго,member_state,Africa,Brazzaville,673,,,true,false,false,false
+RO,Romania,Румыния,member_state,Europe,Bucharest,674,,,true,false,false,false
+RU,Russia,Россия,member_state,Europe,Moscow,675,,,true,false,false,false
+RW,Rwanda,Руанда,member_state,Africa,Kigali,676,,,true,false,false,false
+WS,Samoa,Самоа,member_state,Oceania,Apia,677,,,true,false,false,false
+SM,San Marino,Сан-Марино,member_state,Europe,San Marino,678,,,true,false,false,false
+SA,Saudi Arabia,Саудовская Аравия,member_state,Asia,Riyadh,679,,,true,false,false,false
+SN,Senegal,Сенегал,member_state,Africa,Dakar,680,,,true,false,false,false
+RS,Serbia,Сербия,member_state,Europe,Belgrade,681,,,true,false,false,false
+SC,Seychelles,Сейшельские о-ва,member_state,Africa,Victoria,682,,,true,false,false,false
+SL,Sierra Leone,Сьерра-Леоне,member_state,Africa,Freetown,683,,,true,false,false,false
+SG,Singapore,Сингапур,member_state,Asia,Singapore,684,,,true,false,false,false
+SK,Slovakia,Словакия,member_state,Europe,Bratislava,685,,,true,false,false,false
+SI,Slovenia,Словения,member_state,Europe,Ljubljana,686,,,true,false,false,false
+SB,Solomon Islands,Соломоновы о-ва,member_state,Oceania,Honiara,687,,,true,false,false,false
+SO,Somalia,Сомали,member_state,Africa,Mogadishu,688,,,true,false,false,false
+ZA,South Africa,Южно-Африканская Республика,member_state,Africa,Pretoria,689,,,true,false,false,false
+SS,South Sudan,Южный Судан,member_state,Africa,Juba,690,,,true,false,false,false
+ES,Spain,Испания,member_state,Europe,Madrid,691,,,true,false,false,false
+LK,Sri Lanka,Шри-Ланка,member_state,Asia,Colombo,692,,,true,false,false,false
+KN,St. Kitts & Nevis,Сент-Китс и Невис,member_state,Americas,Basseterre,693,,,true,false,false,false
+LC,St. Lucia,Сент-Люсия,member_state,Americas,Castries,694,,,true,false,false,false
+VC,St. Vincent & Grenadines,Сент-Винсент и Гренадины,member_state,Americas,Kingstown,695,,,true,false,false,false
+PS,State of Palestine,Государство Палестина,observer_state,Asia,East Jerusalem,696,,,true,false,false,false
+SD,Sudan,Судан,member_state,Africa,Khartoum,697,,,true,false,false,false
+SR,Suriname,Суринам,member_state,Americas,Paramaribo,698,,,true,false,false,false
+SE,Sweden,Швеция,member_state,Europe,Stockholm,699,,,true,false,false,false
+CH,Switzerland,Швейцария,member_state,Europe,Bern,700,,,true,false,false,false
+SY,Syria,Сирия,member_state,Asia,Damascus,701,,,true,false,false,false
+ST,São Tomé & Príncipe,Сан-Томе и Принсипи,member_state,Africa,Sao Tome,702,,,true,false,false,false
+TJ,Tajikistan,Таджикистан,member_state,Asia,Dushanbe,703,,,true,false,false,false
+TZ,Tanzania,Танзания,member_state,Africa,Dodoma,704,,,true,false,false,false
+TH,Thailand,Таиланд,member_state,Asia,Bangkok,705,,,true,false,false,false
+TL,Timor-Leste,Восточный Тимор,member_state,Asia,Dili,706,,,true,false,false,false
+TG,Togo,Того,member_state,Africa,Lome,707,,,true,false,false,false
+TO,Tonga,Тонга,member_state,Oceania,Nuku'alofa,708,,,true,false,false,false
+TT,Trinidad & Tobago,Тринидад и Тобаго,member_state,Americas,Port of Spain,709,,,true,false,false,false
+TN,Tunisia,Тунис,member_state,Africa,Tunis,710,,,true,false,false,false
+TM,Turkmenistan,Туркменистан,member_state,Asia,Ashgabat,711,,,true,false,false,false
+TV,Tuvalu,Тувалу,member_state,Oceania,Funafuti,712,,,true,false,false,false
+TR,Türkiye,Турция,member_state,Asia,Ankara,713,,,true,false,false,false
+UG,Uganda,Уганда,member_state,Africa,Kampala,714,,,true,false,false,false
+UA,Ukraine,Украина,member_state,Europe,Kyiv,715,,,true,false,false,false
+AE,United Arab Emirates,ОАЭ,member_state,Asia,Abu Dhabi,716,,,true,false,false,false
+GB,United Kingdom,Великобритания,member_state,Europe,London,717,,,true,false,false,false
+US,United States,Соединенные Штаты,member_state,Americas,Washington,718,,,true,false,false,false
+UY,Uruguay,Уругвай,member_state,Americas,Montevideo,719,,,true,false,false,false
+UZ,Uzbekistan,Узбекистан,member_state,Asia,Tashkent,720,,,true,false,false,false
+VU,Vanuatu,Вануату,member_state,Oceania,Port Vila,721,,,true,false,false,false
+VE,Venezuela,Венесуэла,member_state,Americas,Caracas,722,,,true,false,false,false
+VN,Vietnam,Вьетнам,member_state,Asia,Hanoi,723,,,true,false,false,false
+YE,Yemen,Йемен,member_state,Asia,Sanaa,724,,,true,false,false,false
+ZM,Zambia,Замбия,member_state,Africa,Lusaka,725,,,true,false,false,false
+ZW,Zimbabwe,Зимбабве,member_state,Africa,Harare,726,,,true,false,false,false

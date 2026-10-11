@@ -14,7 +14,9 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public final class AuthData {
@@ -51,9 +53,66 @@ public final class AuthData {
 
     public static void save() {
         if (dataFile == null) return;
+        saveSnapshot(playerPasswords);
+    }
+
+    /** Persist first, then expose the account to other commands on the server thread. */
+    static boolean registerHashedAndSave(String username, String encodedHash) {
+        if (dataFile == null) throw new IllegalStateException("Authentication data is not initialized");
+        if (encodedHash == null || !encodedHash.matches("pbkdf2:120000:[0-9a-f]{32}:[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("Invalid password hash");
+        }
+        String key = username.toLowerCase(Locale.ROOT);
+        if (playerPasswords.containsKey(key)) return false;
+        Map<String, String> snapshot = new HashMap<>(playerPasswords);
+        snapshot.put(key, encodedHash);
+        saveSnapshot(snapshot);
+        playerPasswords.put(key, encodedHash);
+        return true;
+    }
+
+    static int registeredPlayerCount() {
+        return playerPasswords.size();
+    }
+
+    /** Compare the hash captured before worker verification, then persist before mutating memory. */
+    static boolean replacePasswordHashAndSave(String username, String expectedStored, String encodedHash) {
+        if (dataFile == null) throw new IllegalStateException("Authentication data is not initialized");
+        if (encodedHash == null || !encodedHash.matches("pbkdf2:120000:[0-9a-f]{32}:[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("Invalid password hash");
+        }
+        String key = username.toLowerCase(Locale.ROOT);
+        String current = playerPasswords.get(key);
+        if (current == null || !Objects.equals(current, expectedStored)) return false;
+        Map<String, String> snapshot = new HashMap<>(playerPasswords);
+        snapshot.put(key, encodedHash);
+        saveSnapshot(snapshot);
+        playerPasswords.put(key, encodedHash);
+        return true;
+    }
+
+    static boolean setPlayerPasswordAndSave(String username, String password) {
+        if (!PasswordPolicy.withinNewPasswordLength(password)) {
+            throw new IllegalArgumentException("New password exceeds usable command length");
+        }
+        return replacePasswordHashAndSave(username, getStoredPassword(username), PasswordHasher.hash(password));
+    }
+
+    static boolean removePlayerAndSave(String username) {
+        if (dataFile == null) throw new IllegalStateException("Authentication data is not initialized");
+        String key = username.toLowerCase(Locale.ROOT);
+        if (!playerPasswords.containsKey(key)) return false;
+        Map<String, String> snapshot = new HashMap<>(playerPasswords);
+        snapshot.remove(key);
+        saveSnapshot(snapshot);
+        playerPasswords.remove(key);
+        return true;
+    }
+
+    private static void saveSnapshot(Map<String, String> snapshot) {
         File tmp = new File(dataFile.getParentFile(), dataFile.getName() + ".tmp");
         try {
-            Files.writeString(tmp.toPath(), GSON.toJson(playerPasswords), StandardCharsets.UTF_8);
+            Files.writeString(tmp.toPath(), GSON.toJson(snapshot), StandardCharsets.UTF_8);
             try {
                 Files.move(tmp.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException e) {
@@ -66,15 +125,18 @@ public final class AuthData {
     }
 
     public static boolean isRegistered(String username) {
-        return playerPasswords.containsKey(username.toLowerCase());
+        return playerPasswords.containsKey(username.toLowerCase(Locale.ROOT));
     }
 
     public static String getStoredPassword(String username) {
-        return playerPasswords.get(username.toLowerCase());
+        return playerPasswords.get(username.toLowerCase(Locale.ROOT));
     }
 
     public static void setPlayerPassword(String username, String password) {
-        playerPasswords.put(username.toLowerCase(), PasswordHasher.hash(password));
+        if (!PasswordPolicy.withinNewPasswordLength(password)) {
+            throw new IllegalArgumentException("New password exceeds usable command length");
+        }
+        playerPasswords.put(username.toLowerCase(Locale.ROOT), PasswordHasher.hash(password));
     }
 
     /**
@@ -82,19 +144,20 @@ public final class AuthData {
      * переводятся в новый формат при первом успешном входе.
      */
     public static boolean verifyPassword(String username, String password) {
+        if (!PasswordPolicy.withinMaxLength(password)) return false;
         String stored = getStoredPassword(username);
         if (stored == null) return false;
         if (PasswordHasher.isLegacy(stored)) {
             if (!stored.equals(password)) return false;
-            setPlayerPassword(username, password);
-            save();
+            // A legacy password may exceed the bound for newly chosen passwords.
+            if (!replacePasswordHashAndSave(username, stored, PasswordHasher.hash(password))) return false;
             return true;
         }
         return PasswordHasher.verify(password, stored);
     }
 
     public static boolean removePlayer(String username) {
-        return playerPasswords.remove(username.toLowerCase()) != null;
+        return playerPasswords.remove(username.toLowerCase(Locale.ROOT)) != null;
     }
 
     /** Все зарегистрированные имена (в нижнем регистре) — для автодополнения. */

@@ -1,0 +1,196 @@
+iso2,name_en,natural_earth_feature_index,natural_earth_name,join_method,polygon_count,ring_count,vertex_count,minecraft_terrain_generated,minecraft_spawn_validated
+AF,Afghanistan,129,Afghanistan,ISO_A2,1,1,1530,false,false
+AL,Albania,62,Albania,ISO_A2,1,1,554,false,false
+DZ,Algeria,121,Algeria,ISO_A2,1,1,1249,false,false
+AD,Andorra,128,Andorra,ISO_A2,1,1,51,false,false
+AO,Angola,101,Angola,ISO_A2,3,3,1643,false,false
+AG,Antigua & Barbuda,206,Antigua and Barb.,ISO_A2,3,3,118,false,false
+AR,Argentina,5,Argentina,ISO_A2,8,8,4674,false,false
+AM,Armenia,69,Armenia,ISO_A2,2,4,434,false,false
+AU,Australia,176,Australia,ISO_A2,94,94,13650,false,false
+AT,Austria,88,Austria,ISO_A2,1,1,1094,false,false
+AZ,Azerbaijan,63,Azerbaijan,ISO_A2,6,7,957,false,false
+BS,Bahamas,186,Bahamas,ISO_A2,44,44,1629,false,false
+BH,Bahrain,249,Bahrain,ISO_A2,7,7,147,false,false
+BD,Bangladesh,127,Bangladesh,ISO_A2,22,22,2280,false,false
+BB,Barbados,201,Barbados,ISO_A2,1,1,35,false,false
+BY,Belarus,34,Belarus,ISO_A2,1,1,1173,false,false
+BE,Belgium,59,Belgium,ISO_A2,1,1,648,false,false
+BZ,Belize,157,Belize,ISO_A2,10,10,493,false,false
+BJ,Benin,100,Benin,ISO_A2,1,1,616,false,false
+BT,Bhutan,32,Bhutan,ISO_A2,1,1,327,false,false
+BO,Bolivia,3,Bolivia,ISO_A2,1,1,1491,false,false
+BA,Bosnia & Herzegovina,131,Bosnia and Herz.,ISO_A2,1,1,616,false,false
+BW,Botswana,106,Botswana,ISO_A2,1,1,956,false,false
+BR,Brazil,44,Brazil,ISO_A2,43,43,11121,false,false
+BN,Brunei,119,Brunei,ISO_A2,2,2,156,false,false
+BG,Bulgaria,109,Bulgaria,ISO_A2,1,1,879,false,false
+BF,Burkina Faso,149,Burkina Faso,ISO_A2,1,1,1110,false,false
+BI,Burundi,124,Burundi,ISO_A2,1,1,307,false,false
+KH,Cambodia,56,Cambodia,ISO_A2,6,6,1209,false,false
+CM,Cameroon,146,Cameroon,ISO_A2,1,1,1456,false,false
+CA,Canada,155,Canada,ISO_A2,412,412,68193,false,false
+CV,Cape Verde,221,Cabo Verde,ISO_A2,11,11,433,false,false
+CF,Central African Republic,84,Central African Rep.,ISO_A2,1,1,1792,false,false
+TD,Chad,114,Chad,ISO_A2,1,1,1216,false,false
+CL,Chile,2,Chile,ISO_A2,163,163,17197,false,false
+CN,China,9,China,ISO_A2,70,70,14118,false,false
+CO,Colombia,137,Colombia,ISO_A2,11,11,3286,false,false
+KM,Comoros,219,Comoros,ISO_A2,3,3,127,false,false
+CR,Costa Rica,28,Costa Rica,ISO_A2,4,4,827,false,false
+HR,Croatia,102,Croatia,ISO_A2,25,25,2341,false,false
+CU,Cuba,134,Cuba,ISO_A2,41,41,2697,false,false
+CY,Cyprus,7,Cyprus,ISO_A2,4,4,301,false,false
+CZ,Czechia,48,Czechia,ISO_A2,1,1,922,false,false
+CI,Côte d’Ivoire,95,Côte d'Ivoire,ISO_A2,2,2,1599,false,false
+KP,Democratic People's Republic of Korea,25,North Korea,ISO_A2,10,10,1782,false,false
+CD,Democratic Republic of the Congo,31,Dem. Rep. Congo,ISO_A2,2,2,2868,false,false
+DK,Denmark,70,Denmark,ISO_A2,15,15,2180,false,false
+DJ,Djibouti,86,Djibouti,ISO_A2,1,1,209,false,false
+DM,Dominica,203,Dominica,ISO_A2,1,1,75,false,false
+DO,Dominican Republic,113,Dominican Rep.,ISO_A2,3,3,580,false,false
+EC,Ecuador,136,Ecuador,ISO_A2,16,16,1513,false,false
+EG,Egypt,161,Egypt,ISO_A2,8,10,1934,false,false
+SV,El Salvador,116,El Salvador,ISO_A2,3,3,380,false,false
+GQ,Equatorial Guinea,164,Eq. Guinea,ISO_A2,3,3,251,false,false
+ER,Eritrea,87,Eritrea,ISO_A2,3,3,1010,false,false
+EE,Estonia,50,Estonia,ISO_A2,8,8,1044,false,false
+SZ,Eswatini,123,eSwatini,ISO_A2,1,1,85,false,false
+ET,Ethiopia,13,Ethiopia,ISO_A2,1,1,1074,false,false
+FM,Federated States of Micronesia,240,Micronesia,ISO_A2,20,20,254,false,false
+FJ,Fiji,178,Fiji,ISO_A2,44,44,1476,false,false
+FI,Finland,54,Finland,ISO_A2,42,42,3225,false,false
+FR,France,21,France,ADM0_A3=FRA,21,22,4641,false,false
+GA,Gabon,147,Gabon,ISO_A2,3,3,1462,false,false
+GM,Gambia,165,Gambia,ISO_A2,1,1,406,false,false
+GE,Georgia,60,Georgia,ISO_A2,1,1,533,false,false
+DE,Germany,49,Germany,ISO_A2,22,22,3027,false,false
+GH,Ghana,151,Ghana,ISO_A2,1,1,828,false,false
+GR,Greece,79,Greece,ISO_A2,74,74,6096,false,false
+GD,Grenada,199,Grenada,ISO_A2,2,2,64,false,false
+GT,Guatemala,117,Guatemala,ISO_A2,1,1,459,false,false
+GN,Guinea,82,Guinea,ISO_A2,1,1,1628,false,false
+GW,Guinea-Bissau,152,Guinea-Bissau,ISO_A2,13,13,1282,false,false
+GY,Guyana,23,Guyana,ISO_A2,2,2,1121,false,false
+HT,Haiti,112,Haiti,ISO_A2,5,5,652,false,false
+VA,Holy See,167,Vatican,ISO_A2,1,1,7,false,false
+HN,Honduras,135,Honduras,ISO_A2,7,7,1184,false,false
+HU,Hungary,74,Hungary,ISO_A2,1,1,848,false,false
+IS,Iceland,191,Iceland,ISO_A2,5,5,3117,false,false
+IN,India,8,India,ISO_A2,35,35,7737,false,false
+ID,Indonesia,0,Indonesia,ISO_A2,264,264,19565,false,false
+IR,Iran,92,Iran,ISO_A2,12,12,2728,false,false
+IQ,Iraq,89,Iraq,ISO_A2,1,1,841,false,false
+IE,Ireland,77,Ireland,ISO_A2,7,7,2394,false,false
+IL,Israel,10,Israel,ISO_A2,1,1,471,false,false
+IT,Italy,90,Italy,ISO_A2,29,31,3361,false,false
+JM,Jamaica,213,Jamaica,ISO_A2,1,1,254,false,false
+JP,Japan,189,Japan,ISO_A2,109,109,6952,false,false
+JO,Jordan,143,Jordan,ISO_A2,1,1,364,false,false
+KZ,Kazakhstan,41,Kazakhstan,ISO_A2,6,7,4211,false,false
+KE,Kenya,16,Kenya,ISO_A2,2,2,876,false,false
+KI,Kiribati,196,Kiribati,ISO_A2,35,35,709,false,false
+KW,Kuwait,115,Kuwait,ISO_A2,4,4,248,false,false
+KG,Kyrgyzstan,68,Kyrgyzstan,ISO_A2,1,4,1206,false,false
+LA,Laos,67,Laos,ISO_A2,1,1,1761,false,false
+LV,Latvia,51,Latvia,ISO_A2,1,1,543,false,false
+LB,Lebanon,12,Lebanon,ISO_A2,1,1,312,false,false
+LS,Lesotho,145,Lesotho,ISO_A2,1,1,324,false,false
+LR,Liberia,83,Liberia,ISO_A2,1,1,698,false,false
+LY,Libya,71,Libya,ISO_A2,1,1,660,false,false
+LI,Liechtenstein,94,Liechtenstein,ISO_A2,1,1,29,false,false
+LT,Lithuania,43,Lithuania,ISO_A2,2,2,562,false,false
+LU,Luxembourg,57,Luxembourg,ISO_A2,1,1,197,false,false
+MG,Madagascar,181,Madagascar,ISO_A2,3,3,1649,false,false
+MW,Malawi,17,Malawi,ISO_A2,3,3,815,false,false
+MY,Malaysia,1,Malaysia,ISO_A2,17,17,2550,false,false
+MV,Maldives,238,Maldives,ISO_A2,176,176,1454,false,false
+ML,Mali,97,Mali,ISO_A2,1,1,1747,false,false
+MT,Malta,222,Malta,ISO_A2,2,2,55,false,false
+MH,Marshall Islands,197,Marshall Is.,ISO_A2,22,22,211,false,false
+MR,Mauritania,163,Mauritania,ISO_A2,5,5,1146,false,false
+MU,Mauritius,218,Mauritius,ISO_A2,3,3,113,false,false
+MX,Mexico,156,Mexico,ISO_A2,51,51,7419,false,false
+MD,Moldova,141,Moldova,ISO_A2,1,1,721,false,false
+MC,Monaco,120,Monaco,ISO_A2,1,1,12,false,false
+MN,Mongolia,46,Mongolia,ISO_A2,1,1,1494,false,false
+ME,Montenegro,130,Montenegro,ISO_A2,1,1,358,false,false
+MA,Morocco,26,Morocco,ISO_A2,1,1,1019,false,false
+MZ,Mozambique,122,Mozambique,ISO_A2,4,6,2335,false,false
+MM,Myanmar (Burma),126,Myanmar,ISO_A2,39,39,4602,false,false
+NA,Namibia,35,Namibia,ISO_A2,1,1,1183,false,false
+NR,Nauru,239,Nauru,ISO_A2,1,1,9,false,false
+NP,Nepal,144,Nepal,ISO_A2,1,1,1021,false,false
+NL,Netherlands,93,Netherlands,ISO_A2,12,12,854,false,false
+NZ,New Zealand,179,New Zealand,ISO_A2,26,26,4532,false,false
+NI,Nicaragua,29,Nicaragua,ISO_A2,5,5,937,false,false
+NE,Niger,148,Niger,ISO_A2,1,1,1042,false,false
+NG,Nigeria,99,Nigeria,ISO_A2,3,3,1772,false,false
+MK,North Macedonia,61,North Macedonia,ISO_A2,1,1,363,false,false
+NO,Norway,52,Norway,ADM0_A3=NOR,120,120,15817,false,false
+OM,Oman,39,Oman,ISO_A2,6,7,1033,false,false
+PK,Pakistan,108,Pakistan,ISO_A2,2,2,2141,false,false
+PW,Palau,246,Palau,ISO_A2,9,9,165,false,false
+PA,Panama,158,Panama,ISO_A2,15,15,1999,false,false
+PG,Papua New Guinea,160,Papua New Guinea,ISO_A2,58,58,4795,false,false
+PY,Paraguay,138,Paraguay,ISO_A2,1,1,1139,false,false
+PE,Peru,4,Peru,ISO_A2,5,5,2421,false,false
+PH,Philippines,182,Philippines,ISO_A2,97,97,7406,false,false
+PL,Poland,76,Poland,ISO_A2,1,1,1332,false,false
+PT,Portugal,140,Portugal,ISO_A2,17,17,1255,false,false
+QA,Qatar,104,Qatar,ISO_A2,1,1,241,false,false
+KR,Republic of Korea,24,South Korea,ISO_A2,53,53,3060,false,false
+CG,Republic of the Congo,30,Congo,ISO_A2,1,1,1345,false,false
+RO,Romania,73,Romania,ISO_A2,1,1,1198,false,false
+RU,Russia,47,Russia,ISO_A2,214,214,36756,false,false
+RW,Rwanda,125,Rwanda,ISO_A2,1,1,321,false,false
+WS,Samoa,235,Samoa,ISO_A2,2,2,132,false,false
+SM,San Marino,111,San Marino,ISO_A2,1,1,19,false,false
+SA,Saudi Arabia,105,Saudi Arabia,ISO_A2,11,11,2368,false,false
+SN,Senegal,98,Senegal,ISO_A2,1,1,1378,false,false
+RS,Serbia,96,Serbia,ISO_A2,1,1,940,false,false
+SC,Seychelles,195,Seychelles,ISO_A2,26,26,330,false,false
+SL,Sierra Leone,81,Sierra Leone,ISO_A2,2,2,695,false,false
+SG,Singapore,230,Singapore,ISO_A2,1,1,40,false,false
+SK,Slovakia,75,Slovakia,ISO_A2,1,1,572,false,false
+SI,Slovenia,103,Slovenia,ISO_A2,1,1,519,false,false
+SB,Solomon Islands,236,Solomon Is.,ISO_A2,48,48,2177,false,false
+SO,Somalia,15,Somalia,ISO_A2,1,1,668,false,false
+ZA,South Africa,36,South Africa,ISO_A2,3,4,2207,false,false
+SS,South Sudan,14,S. Sudan,ISO_A2,1,1,1158,false,false
+ES,Spain,66,Spain,ISO_A2,23,23,2978,false,false
+LK,Sri Lanka,183,Sri Lanka,ISO_A2,5,5,871,false,false
+KN,St. Kitts & Nevis,207,St. Kitts and Nevis,ISO_A2,2,2,43,false,false
+LC,St. Lucia,202,Saint Lucia,ISO_A2,1,1,50,false,false
+VC,St. Vincent & Grenadines,200,St. Vin. and Gren.,ISO_A2,5,5,83,false,false
+PS,State of Palestine,11,Palestine,ISO_A2,2,2,234,false,false
+SD,Sudan,85,Sudan,ISO_A2,2,2,1178,false,false
+SR,Suriname,22,Suriname,ISO_A2,1,1,737,false,false
+SE,Sweden,53,Sweden,ISO_A2,41,41,4665,false,false
+CH,Switzerland,91,Switzerland,ISO_A2,1,1,749,false,false
+SY,Syria,19,Syria,ISO_A2,1,1,591,false,false
+ST,São Tomé & Príncipe,220,São Tomé and Principe,ISO_A2,2,2,96,false,false
+TJ,Tajikistan,42,Tajikistan,ISO_A2,3,3,1257,false,false
+TZ,Tanzania,18,Tanzania,ISO_A2,7,7,1762,false,false
+TH,Thailand,110,Thailand,ISO_A2,20,20,3317,false,false
+TL,Timor-Leste,118,Timor-Leste,ISO_A2,3,3,279,false,false
+TG,Togo,150,Togo,ISO_A2,1,1,486,false,false
+TO,Tonga,233,Tonga,ISO_A2,10,10,212,false,false
+TT,Trinidad & Tobago,198,Trinidad and Tobago,ISO_A2,2,2,196,false,false
+TN,Tunisia,72,Tunisia,ISO_A2,4,4,700,false,false
+TM,Turkmenistan,142,Turkmenistan,ISO_A2,3,3,1664,false,false
+TV,Tuvalu,237,Tuvalu,ISO_A2,9,9,69,false,false
+TR,Türkiye,65,Turkey,ISO_A2,6,6,3640,false,false
+UG,Uganda,132,Uganda,ISO_A2,1,1,611,false,false
+UA,Ukraine,33,Ukraine,ISO_A2,4,4,2659,false,false
+AE,United Arab Emirates,58,United Arab Emirates,ISO_A2,10,11,798,false,false
+GB,United Kingdom,78,United Kingdom,ISO_A2,57,57,7113,false,false
+US,United States,154,United States of America,ISO_A2,344,344,35981,false,false
+UY,Uruguay,45,Uruguay,ISO_A2,1,1,584,false,false
+UZ,Uzbekistan,40,Uzbekistan,ISO_A2,3,4,1666,false,false
+VU,Vanuatu,243,Vanuatu,ISO_A2,27,27,1015,false,false
+VE,Venezuela,159,Venezuela,ISO_A2,29,29,3201,false,false
+VN,Vietnam,55,Vietnam,ISO_A2,25,25,4166,false,false
+YE,Yemen,162,Yemen,ISO_A2,9,9,1029,false,false
+ZM,Zambia,80,Zambia,ISO_A2,1,1,1508,false,false
+ZW,Zimbabwe,107,Zimbabwe,ISO_A2,1,1,766,false,false

@@ -1,0 +1,63 @@
+{
+  "counts": {
+    "baseline_states": 195,
+    "geonames_extra_codes": 1,
+    "iso_areas_outside_baseline": 54,
+    "un_member_states": 193,
+    "un_observer_states": 2
+  },
+  "limitations": [
+    "The 195-country convention is 193 UN members plus two observer states as written in the supplied text; this extractor does not revalidate current UN status.",
+    "M49 broad region is a statistical label, not physical extent of a transcontinental country.",
+    "Reference localities are illustrative, not a certified current list of capitals.",
+    "Additional ISO areas and GeoNames XK are separate from the 195-state baseline; no sovereignty conclusion is drawn.",
+    "No country/area polygons, settlement catalogue, city counts, generated Minecraft terrain, or safe spawn checks are supplied by these source texts."
+  ],
+  "outputs": [
+    {
+      "bytes": 5228,
+      "file": "areas_outside_195_baseline.csv",
+      "sha256": "bd8300bd942c56e47f91d00afd61a65c99748ee8f9a71982a7af28c94af1f3d4"
+    },
+    {
+      "bytes": 16076,
+      "file": "areas_outside_195_baseline.json",
+      "sha256": "a9d1d97b95aea3511805bc963b5d548ee35fe36c915accde984994c378055f82"
+    },
+    {
+      "bytes": 17502,
+      "file": "countries_195_reference.csv",
+      "sha256": "714ab9cf5088e3280ade010ece4582b4bf07698e17398f84314c17be6c279af4"
+    },
+    {
+      "bytes": 81075,
+      "file": "countries_195_reference.json",
+      "sha256": "b66e3ab015e3b1454a896fd0e218fb569bf84a7cbcddb0d28b3f87c1a51c0dbc"
+    },
+    {
+      "bytes": 251,
+      "file": "geonames_xk_note.json",
+      "sha256": "2b792339ddf74bc39f9093429d27d1fb16b03edbb669a0d51f4185defa88b45c"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Text-derived reference catalogue only; no geographic geometry or Minecraft world coverage.",
+  "sources": [
+    {
+      "bytes": 190900,
+      "encoding": "UTF-8",
+      "extracted_section": "COUNTRY CHECKLIST — ALL 195 BASELINE ENTRIES",
+      "file": "CODEX_Earth_Horror_Master_With_Geography_EN.txt",
+      "provenance": "owner-supplied text",
+      "sha256": "b38610f2eab3795dfe1c2a3aa905b5b1d6827d2138d0f4ebb8bda42278ab44fc"
+    },
+    {
+      "bytes": 88384,
+      "encoding": "UTF-8",
+      "extracted_section": "ПРИЛОЖЕНИЕ В. ДОПОЛНИТЕЛЬНЫЕ ГЕОГРАФИЧЕСКИЕ ЗАПИСИ",
+      "file": "WORLD_GEOGRAPHY_RESEARCH_RU.txt",
+      "provenance": "owner-supplied text",
+      "sha256": "061ca88c5443a4ba2294b01d146faa009f9414afce97e4c4fe672a47eb08a384"
+    }
+  ]
+}

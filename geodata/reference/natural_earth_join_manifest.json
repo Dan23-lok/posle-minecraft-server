@@ -1,0 +1,11 @@
+{
+  "baseline_rows": 195,
+  "direct_iso_a2_matches": 193,
+  "explicit_fallback_matches": 2,
+  "natural_earth_country_features": 258,
+  "natural_earth_land_features": 11,
+  "output": "natural_earth_country_join.csv",
+  "output_sha256": "5333cd4d94c43fa6c3a4a948513cde3c400e7280090efc39e8dbae5d3890bbcb",
+  "scope": "Natural Earth generalized boundary feature join only; no Minecraft world validation.",
+  "source_manifest_sha256": "9306ca474df30859df9739d24b44813840c0acd6233522adeb8abf9c8ae5a8b3"
+}

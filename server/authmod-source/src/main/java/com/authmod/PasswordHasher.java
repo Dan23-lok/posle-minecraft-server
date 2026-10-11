@@ -21,6 +21,9 @@ public final class PasswordHasher {
     }
 
     public static String hash(String password) {
+        if (!PasswordPolicy.withinMaxLength(password)) {
+            throw new IllegalArgumentException("Password exceeds maximum length");
+        }
         byte[] salt = new byte[SALT_BYTES];
         new SecureRandom().nextBytes(salt);
         byte[] hash = pbkdf2(password, salt, ITERATIONS);
@@ -28,6 +31,7 @@ public final class PasswordHasher {
     }
 
     public static boolean verify(String password, String stored) {
+        if (!PasswordPolicy.withinMaxLength(password)) return false;
         String[] parts = stored.split(":");
         if (parts.length != 4 || !PREFIX.equals(parts[0])) return false;
         try {

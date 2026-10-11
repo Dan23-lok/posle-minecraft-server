@@ -1,0 +1,63 @@
+{
+  "base_url": "https://download.geonames.org/export/dump/",
+  "files": {
+    "admin1CodesASCII.txt": {
+      "bytes": 151583,
+      "http_etag": "\"2501f-65d72cdb3fbc2\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:58:39 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:23.181726+00:00",
+      "sha256": "1da92a6323a5fec3176f3f743bf4cf4040fd56a876da55e46fbca23c863aa60a",
+      "url": "https://download.geonames.org/export/dump/admin1CodesASCII.txt"
+    },
+    "admin2Codes.txt": {
+      "bytes": 2366368,
+      "http_etag": "\"241ba0-65d72cdb3fbc2\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:58:39 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:23.649880+00:00",
+      "sha256": "e1b500f4f0e13b3119ff15df84ce3c28982e899bb4183ee033f802a280c377d3",
+      "url": "https://download.geonames.org/export/dump/admin2Codes.txt"
+    },
+    "allCountries.zip": {
+      "bytes": 422010093,
+      "http_etag": "\"19275ced-65d72cdb3f7da\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:58:39 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:38.820047+00:00",
+      "sha256": "3b6ba297e83d5cd6717a41cfe72b6cd85d167b0d0ff06069b2c33d410d6abe15",
+      "url": "https://download.geonames.org/export/dump/allCountries.zip"
+    },
+    "alternateNamesV2.zip": {
+      "bytes": 204826020,
+      "http_etag": "\"c3565a4-65d72e01d607e\"",
+      "http_last_modified": "Sat, 10 Oct 2026 02:03:47 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:42.938250+00:00",
+      "sha256": "436a8231d14aaf4b27d1e5d69b88837eb2563fb7b14553d8845091cb642a4d65",
+      "url": "https://download.geonames.org/export/dump/alternateNamesV2.zip"
+    },
+    "countryInfo.txt": {
+      "bytes": 31680,
+      "http_etag": "\"7bc0-65d72e118db8f\"",
+      "http_last_modified": "Sat, 10 Oct 2026 02:04:04 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:23.859895+00:00",
+      "sha256": "c5997ea659df5bcf42509eb937064d172b2a998bb873608603e8421d714a9974",
+      "url": "https://download.geonames.org/export/dump/countryInfo.txt"
+    },
+    "featureCodes_en.txt": {
+      "bytes": 58642,
+      "http_etag": "\"e512-65d72ac483535\"",
+      "http_last_modified": "Sat, 10 Oct 2026 01:49:18 GMT",
+      "license": "CC BY 4.0 (GeoNames dump README)",
+      "retrieved_at_utc": "2026-10-11T02:16:24.127056+00:00",
+      "sha256": "d44f129c1cffdeabf759c99fe7ea5b84f615c7f3e7366fb76ccf990f408f6af7",
+      "url": "https://download.geonames.org/export/dump/featureCodes_en.txt"
+    }
+  },
+  "license": "CC BY 4.0",
+  "provider": "GeoNames",
+  "scope_note": "Raw source files only; no Minecraft generation or city census claim",
+  "source_readme": "https://download.geonames.org/export/dump/readme.txt"
+}

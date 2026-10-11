@@ -29,6 +29,10 @@ $selectedServerProjects = [ordered]@{
     'Born in Chaos' = 'born-in-chaos'
     'GeckoLib' = 'geckolib'
     "Spooki's Unique Mobs" = 'spookis-unique-mobs'
+    'Pehkui' = 'pehkui'
+}
+$creatureVersionPins = @{
+    'Pehkui' = @{ version = 'SQpqSgAE'; project = 't5W7Jfwy' }
 }
 
 $mods = New-Object System.Collections.ArrayList
@@ -39,6 +43,17 @@ foreach ($name in $selectedServerProjects.Keys) {
     if ($entry.client_side -ne 'required' -or -not $entry.official_url -or -not $entry.download_url -or
             $entry.sha512 -notmatch '^[0-9a-fA-F]{128}$') {
         throw "Server mod has incomplete client download data: $name"
+    }
+    if ($creatureVersionPins.ContainsKey($name)) {
+        $pin = $creatureVersionPins[$name]
+        $v = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/version/$($pin.version)" -Headers $headers
+        $file = @($v.files | Where-Object { $_.filename -ceq $entry.filename })
+        if ($v.project_id -cne $pin.project -or '1.20.1' -notin @($v.game_versions) -or
+                'forge' -notin @($v.loaders) -or $file.Count -ne 1 -or
+                $file[0].url -cne $entry.download_url -or
+                $file[0].hashes.sha512 -cne $entry.sha512) {
+            throw "Official Modrinth metadata differs from server pin: $name"
+        }
     }
     [void]$mods.Add([ordered]@{
         project = $selectedServerProjects[$name]
@@ -157,7 +172,7 @@ foreach ($project in $visualVersions.Keys) {
 
 $manifest = [ordered]@{
     pack = ([char[]]@(0x041F, 0x041E, 0x0421, 0x041B, 0x0415) -join '')
-    pack_version = '2026.10.11.4'
+    pack_version = '2026.10.11.6'
     minecraft_version = '1.20.1'
     forge_version = '47.4.10'
     java_major = 17
@@ -170,6 +185,7 @@ $manifest = [ordered]@{
         url = 'https://corretto.aws/downloads/resources/17.0.20.12.1/amazon-corretto-17.0.20.12.1-windows-x64-jdk.zip'
         sha256 = '1ac8d9dc48b170684ac6223113f524325bd842d14ed74dac28927f8165cffd3a'
         directory = 'jdk17.0.20_12'
+        java_exe_sha256 = '1E1BE5FB92E33218323825B284C16377BDF10F7ED5CB4D30323F6B596EA45E5F'
     }
     files = @($mods)
 }

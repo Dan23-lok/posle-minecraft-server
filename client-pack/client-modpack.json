@@ -1,6 +1,6 @@
 ﻿{
     "pack":  "ПОСЛЕ",
-    "pack_version":  "2026.10.11.4",
+    "pack_version":  "2026.10.11.6",
     "minecraft_version":  "1.20.1",
     "forge_version":  "47.4.10",
     "java_major":  17,
@@ -12,7 +12,8 @@
     "java_runtime":  {
                          "url":  "https://corretto.aws/downloads/resources/17.0.20.12.1/amazon-corretto-17.0.20.12.1-windows-x64-jdk.zip",
                          "sha256":  "1ac8d9dc48b170684ac6223113f524325bd842d14ed74dac28927f8165cffd3a",
-                         "directory":  "jdk17.0.20_12"
+                         "directory":  "jdk17.0.20_12",
+                         "java_exe_sha256":  "1E1BE5FB92E33218323825B284C16377BDF10F7ED5CB4D30323F6B596EA45E5F"
                      },
     "files":  [
                   {
@@ -74,6 +75,16 @@
                       "hash":  "bf0701d71938f0449c3ddc0763f5ba32b7262a2ae73314a3b8e8ef4cebc593816c8bd9208306801d5c2a24d4b44c9465e29e30c39f7988221b78e4d851de2686",
                       "folder":  "mods",
                       "source_page":  "https://modrinth.com/mod/spookis-unique-mobs"
+                  },
+                  {
+                      "project":  "pehkui",
+                      "version":  "3.8.2+1.20.1-forge",
+                      "filename":  "Pehkui-3.8.2+1.20.1-forge.jar",
+                      "url":  "https://cdn.modrinth.com/data/t5W7Jfwy/versions/SQpqSgAE/Pehkui-3.8.2%2B1.20.1-forge.jar",
+                      "hash_algorithm":  "SHA512",
+                      "hash":  "e4660f0b5af6bfe2902ab39a6fbfa911856e0567bffc47842b482731da373afa4424b9e7cf47c61a0c2107445520475053709a6671d9eb4b7f4b55597729af3f",
+                      "folder":  "mods",
+                      "source_page":  "https://modrinth.com/mod/pehkui/version/SQpqSgAE"
                   },
                   {
                       "project":  "powered-flashlight",
